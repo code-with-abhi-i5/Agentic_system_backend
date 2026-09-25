@@ -51,3 +51,9 @@ checkpoints/
 
 # Misc
 *.tgz
+
+# Playwright MCP artifacts
+.playwright-mcp/
+
+# Local fallback data
+data/

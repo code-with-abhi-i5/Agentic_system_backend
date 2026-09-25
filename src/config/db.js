@@ -13,10 +13,10 @@ export const connectDB = async () => {
     }
     catch (error) {
         logger.error(
-            "MongoDB Connection Failed:",
-            error.message
+            "MongoDB Connection Failed: " + error.message
         );
-
-        process.exit(1);
+        logger.warn(
+            "⚠️ Please start local MongoDB or provide a MongoDB Atlas cloud URI in .env (MONGO_URI). Server will continue running..."
+        );
     }
 };

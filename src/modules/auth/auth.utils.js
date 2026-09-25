@@ -30,23 +30,25 @@ export const generateRefreshToken = (
 export const generateAuthPayload = async (
     user
 ) => {
-
+    const id = user._id || user.id;
     const accessToken =
-        generateAccessToken(user._id);
+        generateAccessToken(id);
 
     const refreshToken =
-        generateRefreshToken(user._id);
+        generateRefreshToken(id);
 
     user.refreshToken =
         refreshToken;
 
-    await user.save();
+    if (typeof user.save === "function") {
+        await user.save();
+    }
 
     return {
         accessToken,
         refreshToken,
         user: {
-            id: user._id,
+            id,
             name: user.name,
             email: user.email,
         },

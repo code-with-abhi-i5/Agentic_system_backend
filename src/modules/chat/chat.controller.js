@@ -41,7 +41,15 @@ export const sendMessage = async (req, res) => {
 
             // Track active graph node to filter out internal orchestration tokens
             if (event.event === "on_chain_start") {
-                if (event.name === "intentAnalyzer" || event.name === "metaArchitect" || event.name === "agentSpecificationGenerator" || event.name === "runtimeExecution" || event.name === "responseGenerator") {
+                if (
+                    event.name === "intentAnalyzer" ||
+                    event.name === "metaArchitect" ||
+                    event.name === "agentSpecificationGenerator" ||
+                    event.name === "runtimeExecution" ||
+                    event.name === "dataExtractor" ||
+                    event.name === "dataDeduplicator" ||
+                    event.name === "responseGenerator"
+                ) {
                     activeNode = event.name;
                     const formattedNodeName = activeNode
                         .replace(/([A-Z])/g, ' $1')

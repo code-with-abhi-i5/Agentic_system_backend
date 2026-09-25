@@ -10,6 +10,9 @@ import { globalState } from "../state/globalState.js";
 import { runtimeNode } from "../nodes/runtime.node.js";
 import { responseGeneratorNode } from "../nodes/responseGenerator.node.js";
 
+import { dataExtractorNode } from "../nodes/dataExtractor.node.js";
+import { dataDeduplicatorNode } from "../nodes/dataDeduplicator.node.js";
+
 const workflow =
     new StateGraph(globalState);
 
@@ -24,13 +27,23 @@ workflow.addNode(
 );
 
 workflow.addNode(
+    "agentSpecificationGenerator",
+    agentSpecificationNode
+);
+
+workflow.addNode(
     "runtimeExecution",
     runtimeNode
 );
 
 workflow.addNode(
-    "agentSpecificationGenerator",
-    agentSpecificationNode
+    "dataExtractor",
+    dataExtractorNode
+);
+
+workflow.addNode(
+    "dataDeduplicator",
+    dataDeduplicatorNode
 );
 
 workflow.addNode(
@@ -60,6 +73,16 @@ workflow.addEdge(
 
 workflow.addEdge(
     "runtimeExecution",
+    "dataExtractor"
+);
+
+workflow.addEdge(
+    "dataExtractor",
+    "dataDeduplicator"
+);
+
+workflow.addEdge(
+    "dataDeduplicator",
     "responseGenerator"
 );
 
@@ -70,3 +93,4 @@ workflow.addEdge(
 
 export const testGraph =
     workflow.compile();
+
