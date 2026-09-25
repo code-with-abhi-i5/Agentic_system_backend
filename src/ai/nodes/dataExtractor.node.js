@@ -75,6 +75,8 @@ RULES:
     },
   ];
 
+  logger.debug(`[Data Extractor] Sending request to model with user query: ${state.userQuery}`);
+
   let parsed = null;
   let modelUsed = "gpt-oss-120b";
 
@@ -99,6 +101,7 @@ RULES:
 
   const records = Array.isArray(parsed?.records) ? parsed.records : [];
   logger.info(`✅ [Data Extractor] (${modelUsed}) extracted ${records.length} structured records.`);
+  logger.debug(`[Data Extractor] RAW LLM Response:\n${parsed ? JSON.stringify(parsed, null, 2) : "Failed to parse"}`);
 
   return {
     extractedDataset: parsed,

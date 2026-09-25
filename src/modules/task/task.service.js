@@ -108,7 +108,7 @@ export const updateTaskProgress = async (taskId, status, progress) => {
       await Task.findOneAndUpdate(
         { taskId },
         { status, progress },
-        { new: true }
+        { returnDocument: 'after' }
       );
     } catch (e) {}
   }
@@ -132,7 +132,7 @@ export const completeTaskRecord = async (taskId, { datasetId, stats }) => {
           datasetId,
           stats,
         },
-        { new: true }
+        { returnDocument: 'after' }
       );
     } catch (e) {}
   }

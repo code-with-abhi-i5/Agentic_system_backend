@@ -88,7 +88,7 @@ export const renameConversation = async (
                 title,
             },
             {
-                new: true,
+                returnDocument: 'after',
             }
         );
 

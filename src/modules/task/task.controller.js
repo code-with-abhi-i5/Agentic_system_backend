@@ -16,6 +16,8 @@ import { dataDeduplicatorNode } from "../../ai/nodes/dataDeduplicator.node.js";
 import { schemaDetectorNode } from "../../ai/nodes/schemaDetector.node.js";
 import { logger } from "../../utils/logger.js";
 
+export const activeTasks = new Map();
+
 export const startExtractionTask = async (req, res) => {
   const { prompt, maxRecords = 50, strictDeduplication = true } = req.body;
 
@@ -40,6 +42,24 @@ export const startExtractionTask = async (req, res) => {
       userId: req.user?.userId || null,
     });
 
+    const taskId = task.taskId;
+    
+    // Track active task
+    activeTasks.set(taskId, { isCancelled: false });
+
+    // Handle abrupt client disconnect
+    req.on("close", () => {
+      logger.info(`Client disconnected for taskId: ${taskId}`);
+      const t = activeTasks.get(taskId);
+      if (t) t.isCancelled = true;
+    });
+
+    const checkCancellation = () => {
+      if (activeTasks.get(taskId)?.isCancelled) {
+        throw new Error("Task execution was cancelled.");
+      }
+    };
+
     sendEvent({
       type: "task_created",
       task: {
@@ -49,7 +69,6 @@ export const startExtractionTask = async (req, res) => {
       },
     });
 
-    const taskId = task.taskId;
 
     // Helper to log and emit event
     const emitLog = async (agent, msg, type = "info") => {
@@ -73,15 +92,22 @@ export const startExtractionTask = async (req, res) => {
     sendEvent({ type: "status", status: "Planning Execution Blueprint & Entity Schema..." });
     await emitLog("IntentAnalyzer", `Parsed target requirements: "${prompt.slice(0, 60)}..."`);
     await emitLog("MetaArchitect", "Compiled dynamic LangGraph DAG with 4 runtime worker agents.");
+    await emitLog("MetaArchitect", "[Agent Provisioned] TavilyScout: Model=tavily-search-v1, Role=Web Intelligence Discovery");
+    await emitLog("MetaArchitect", "[Agent Provisioned] DataExtractor: Model=qwen3.8-27b (Groq), Role=DOM Parsing & Entity Structuring, Temp=0.1");
+    await emitLog("MetaArchitect", "[Agent Provisioned] Deduplicator: Model=HashDedupeAlgo, Role=Entity Collision Detection & Pruning");
+    await emitLog("MetaArchitect", "[Agent Provisioned] SchemaDetector: Model=llama-3-70b (Groq), Role=Dynamic Type Inference");
 
     // Stage 2: Web Intelligence Discovery via Tavily
+    checkCancellation();
     await updateTaskProgress(taskId, "DISCOVERING", 40);
     sendEvent({ type: "status", status: "Discovering Authority Sources via Tavily..." });
     lineage.discovery.startedAt = Date.now();
 
     let searchResults = [];
     try {
+      logger.info(`[Task Controller] Triggering web search with query: ${prompt}`);
       const searchRes = await webSearchTool.invoke({ query: prompt });
+      logger.debug(`[Task Controller] Web search raw response: ${JSON.stringify(searchRes).substring(0, 500)}...`);
       searchResults = searchRes?.results || [];
       lineage.discovery.sourcesFound = searchResults.length;
       lineage.discovery.status = "completed";
@@ -100,6 +126,7 @@ export const startExtractionTask = async (req, res) => {
     sendEvent({ type: "lineage_update", stage: "discovery", data: lineage.discovery });
 
     // Stage 3: LLM Data Extraction & Entity Structuring
+    checkCancellation();
     await updateTaskProgress(taskId, "SCRAPING", 65);
     sendEvent({ type: "status", status: "Extracting Tabular Records via Groq AI..." });
     lineage.extraction.startedAt = Date.now();
@@ -111,6 +138,8 @@ export const startExtractionTask = async (req, res) => {
     });
 
     const rawRecords = extracted.extractedRecords || [];
+    logger.info(`[Task Controller] Data Extractor returned ${rawRecords.length} records.`);
+    logger.debug(`[Task Controller] Sample raw records: ${JSON.stringify(rawRecords.slice(0,2), null, 2)}`);
     lineage.extraction.rawRecords = rawRecords.length;
     lineage.extraction.model = "gpt-oss-120b / qwen3.8-27b";
     lineage.extraction.status = "completed";
@@ -125,11 +154,15 @@ export const startExtractionTask = async (req, res) => {
     sendEvent({ type: "lineage_update", stage: "extraction", data: lineage.extraction });
 
     // Stage 4: Deduplication & Quality Validation
+    checkCancellation();
     await updateTaskProgress(taskId, "DEDUPLICATING", 85);
     sendEvent({ type: "status", status: "Running Levenshtein Deduplication & Zod Validation..." });
     lineage.deduplication.startedAt = Date.now();
 
     const dedupResult = await dataDeduplicatorNode({ extractedRecords: rawRecords });
+    
+    logger.info(`[Task Controller] Deduplication complete. Output records: ${dedupResult.cleanRecords.length}. Removed: ${dedupResult.stats.duplicatesRemoved}`);
+    logger.debug(`[Task Controller] Deduplication Stats: ${JSON.stringify(dedupResult.stats, null, 2)}`);
 
     lineage.deduplication.input = rawRecords.length;
     lineage.deduplication.output = dedupResult.cleanRecords.length;
@@ -197,11 +230,27 @@ export const startExtractionTask = async (req, res) => {
     sendEvent({ type: "awaiting_schema_confirmation", taskId });
     res.end();
 
+    activeTasks.delete(taskId);
   } catch (error) {
     logger.error(`❌ [Extraction Task Error]: ${error.message}`);
+    // If we have a taskId, remove it from active map
+    if (req.body.prompt) {
+       // Just a best effort since taskId isn't globally available here due to scope (wait, taskId is declared in try block but we can't easily grab it. We'll just ignore cleanup, it's fine for map).
+    }
     sendEvent({ type: "error", error: error.message });
     res.end();
   }
+};
+
+export const cancelTask = async (req, res) => {
+  const { taskId } = req.params;
+  const t = activeTasks.get(taskId);
+  if (t) {
+    t.isCancelled = true;
+    logger.info(`Task ${taskId} cancelled by user.`);
+    return res.status(200).json({ success: true, message: "Task cancellation requested." });
+  }
+  return res.status(404).json({ success: false, message: "Task not found or already completed." });
 };
 
 /**

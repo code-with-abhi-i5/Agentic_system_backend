@@ -319,7 +319,7 @@ export const sendRegistrationOtp =
             },
             {
                 upsert: true,
-                new: true,
+                returnDocument: 'after',
             }
         );
 
