@@ -196,3 +196,29 @@ export const generateExportContent = async (id, format = "csv") => {
     filename: `${filename}.xls`,
   };
 };
+
+export const updateDatasetSuggestions = async (id, suggestions) => {
+  if (!id || !Array.isArray(suggestions) || suggestions.length === 0) return;
+
+  if (mongoose.connection.readyState === 1) {
+    try {
+      await Dataset.updateOne(
+        { $or: [{ _id: id }, { id: id }] },
+        { $set: { suggestedQuestions: suggestions } }
+      );
+    } catch (e) {
+      console.warn("MongoDB update suggestions failed:", e.message);
+    }
+  }
+
+  try {
+    const diskDataset = fileStorage.getDatasetById(id);
+    if (diskDataset) {
+      diskDataset.suggestedQuestions = suggestions;
+      fileStorage.saveDataset(diskDataset);
+    }
+  } catch (err) {
+    console.warn("Disk update suggestions failed:", err.message);
+  }
+};
+

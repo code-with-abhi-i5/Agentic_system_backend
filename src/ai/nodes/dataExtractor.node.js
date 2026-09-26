@@ -39,23 +39,23 @@ export const dataExtractorNode = async (state, config) => {
 
   const rawData = state.finalOutput || state.rawScrapedData || [];
   const systemPrompt = `You are an elite autonomous Data Extraction & Structuring AI Engine.
-Extract up to 8-12 distinct, high-relevance business entities (companies, startups, products, jobs) from the provided search excerpts that match the user query.
+Extract up to 8-12 distinct, high-relevance entities (companies, channels, creators, projects, products) from the provided search excerpts that match the user query.
 
 Output ONLY a valid parseable JSON object with this exact structure:
 {
   "title": "Clean Dataset Title",
   "records": [
     {
-      "company": "Name of Company or Entity",
+      "company": "Name of Company, Channel or Entity",
       "category": "Industry or Category",
-      "founder": "Founder or Key Contact Person",
-      "role": "Role (e.g. Founder & CEO)",
+      "founder": "Founder, Creator or Key Person",
+      "role": "Role (e.g. Creator, Founder)",
       "email": "Contact Email or Handle",
       "location": "City, Country",
-      "funding": "Funding or Valuation",
-      "techStack": "Technologies used",
+      "funding": "Funding, Valuation or Subscribers",
+      "techStack": "Technologies used or Focus Area",
       "sourceUrl": "Source URL citation",
-      "sourceDomain": "Domain name (e.g. techcrunch.com)",
+      "sourceDomain": "Domain name (e.g. youtube.com)",
       "snippet": "Short excerpt mentioning this entity",
       "confidence": 98
     }
@@ -71,7 +71,7 @@ RULES:
     { role: "system", content: systemPrompt },
     {
       role: "user",
-      content: `USER QUERY: ${state.userQuery}\n\nWEB SEARCH EXCERPTS:\n${JSON.stringify(rawData).slice(0, 10000)}`,
+      content: `USER QUERY: ${state.userQuery}\n\nWEB SEARCH EXCERPTS:\n${JSON.stringify(rawData).slice(0, 20000)}`,
     },
   ];
 

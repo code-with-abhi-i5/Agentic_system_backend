@@ -10,10 +10,11 @@ import {
   clearPendingSchemaReview,
 } from "./task.service.js";
 import { createDataset } from "../dataset/dataset.service.js";
-import { webSearchTool } from "../../ai/tools/webSearch.tool.js";
+import { webSearchTool, executeMultiWebSearch } from "../../ai/tools/webSearch.tool.js";
 import { dataExtractorNode } from "../../ai/nodes/dataExtractor.node.js";
 import { dataDeduplicatorNode } from "../../ai/nodes/dataDeduplicator.node.js";
 import { schemaDetectorNode } from "../../ai/nodes/schemaDetector.node.js";
+import { generateContextualQuestions } from "../../ai/nodes/datasetChat.node.js";
 import { logger } from "../../utils/logger.js";
 
 export const activeTasks = new Map();
@@ -97,26 +98,37 @@ export const startExtractionTask = async (req, res) => {
     await emitLog("MetaArchitect", "[Agent Provisioned] Deduplicator: Model=HashDedupeAlgo, Role=Entity Collision Detection & Pruning");
     await emitLog("MetaArchitect", "[Agent Provisioned] SchemaDetector: Model=llama-3-70b (Groq), Role=Dynamic Type Inference");
 
-    // Stage 2: Web Intelligence Discovery via Tavily
+    // Determine target count from prompt (e.g. "top 50") or maxRecords
+    const numberMatch = prompt.match(/\b(?:top|find|give|get|show|list)?\s*(\d{1,3})\b/i);
+    const requestedNumber = numberMatch ? parseInt(numberMatch[1], 10) : null;
+    const targetCount = requestedNumber && requestedNumber >= 5 && requestedNumber <= 100
+      ? requestedNumber
+      : (maxRecords && maxRecords >= 5 ? maxRecords : 50);
+
+    // Stage 2: Web Intelligence Discovery via Tavily Multi-Search
     checkCancellation();
     await updateTaskProgress(taskId, "DISCOVERING", 40);
-    sendEvent({ type: "status", status: "Discovering Authority Sources via Tavily..." });
+    sendEvent({ type: "status", status: `Discovering Authority Sources targeting ${targetCount} items...` });
     lineage.discovery.startedAt = Date.now();
 
     let searchResults = [];
     try {
-      logger.info(`[Task Controller] Triggering web search with query: ${prompt}`);
-      const searchRes = await webSearchTool.invoke({ query: prompt });
-      logger.debug(`[Task Controller] Web search raw response: ${JSON.stringify(searchRes).substring(0, 500)}...`);
+      logger.info(`[Task Controller] Triggering multi-search for query: "${prompt}" (target: ${targetCount})`);
+      const searchRes = await executeMultiWebSearch(prompt, {
+        targetCount,
+        onProgress: async (msg) => {
+          await emitLog("TavilyScout", msg);
+        }
+      });
       searchResults = searchRes?.results || [];
       lineage.discovery.sourcesFound = searchResults.length;
       lineage.discovery.status = "completed";
       await emitLog(
         "TavilyScout",
-        `Discovered ${searchResults.length} authoritative web domains matching query.`
+        `Discovered ${searchResults.length} authoritative web domains across multi-query matrix.`
       );
     } catch (searchErr) {
-      logger.warn(`Tavily search notice: ${searchErr.message}`);
+      logger.warn(`Tavily multi-search notice: ${searchErr.message}`);
       lineage.discovery.status = "partial";
       await emitLog("TavilyScout", "Initiated web search across permitted authority domains.");
     }
@@ -125,21 +137,68 @@ export const startExtractionTask = async (req, res) => {
     // Emit lineage progress
     sendEvent({ type: "lineage_update", stage: "discovery", data: lineage.discovery });
 
-    // Stage 3: LLM Data Extraction & Entity Structuring
+    // Stage 3: LLM Data Extraction & Entity Structuring (Batched for High Accuracy)
     checkCancellation();
     await updateTaskProgress(taskId, "SCRAPING", 65);
     sendEvent({ type: "status", status: "Extracting Tabular Records via Groq AI..." });
     lineage.extraction.startedAt = Date.now();
     await emitLog("DataExtractor", `Parsing structured entities from raw web intelligence payload.`);
 
-    const extracted = await dataExtractorNode({
-      userQuery: prompt,
-      finalOutput: searchResults,
-    });
+    const rawRecords = [];
+    let datasetTitle = prompt.length > 40 ? `${prompt.slice(0, 38)}...` : prompt;
 
-    const rawRecords = extracted.extractedRecords || [];
-    logger.info(`[Task Controller] Data Extractor returned ${rawRecords.length} records.`);
-    logger.debug(`[Task Controller] Sample raw records: ${JSON.stringify(rawRecords.slice(0,2), null, 2)}`);
+    if (searchResults.length <= 10) {
+      const extracted = await dataExtractorNode({
+        userQuery: prompt,
+        finalOutput: searchResults,
+      });
+      if (extracted?.extractedRecords) {
+        rawRecords.push(...extracted.extractedRecords);
+      }
+      if (extracted?.datasetTitle) {
+        datasetTitle = extracted.datasetTitle;
+      }
+    } else {
+      // Chunk search results into batches of 8-10 results to prevent LLM token cutoffs
+      const chunkSize = 8;
+      const chunks = [];
+      for (let i = 0; i < searchResults.length; i += chunkSize) {
+        chunks.push(searchResults.slice(i, i + chunkSize));
+      }
+
+      await emitLog(
+        "DataExtractor",
+        `Divided ${searchResults.length} sources into ${chunks.length} extraction batches targeting ${targetCount} items.`
+      );
+
+      for (let i = 0; i < chunks.length; i++) {
+        checkCancellation();
+        const chunk = chunks[i];
+        await emitLog(
+          "DataExtractor",
+          `Processing batch ${i + 1}/${chunks.length} (${chunk.length} authority sites)...`
+        );
+
+        const extracted = await dataExtractorNode({
+          userQuery: prompt,
+          finalOutput: chunk,
+        });
+
+        if (extracted?.extractedRecords?.length) {
+          rawRecords.push(...extracted.extractedRecords);
+        }
+        if (extracted?.datasetTitle && extracted.datasetTitle !== "Intelligence Dataset") {
+          datasetTitle = extracted.datasetTitle;
+        }
+
+        // If we collected sufficient buffer over targetCount, break early to save time
+        if (rawRecords.length >= targetCount * 1.3) {
+          break;
+        }
+      }
+    }
+
+    logger.info(`[Task Controller] Total raw extracted records: ${rawRecords.length}`);
     lineage.extraction.rawRecords = rawRecords.length;
     lineage.extraction.model = "gpt-oss-120b / qwen3.8-27b";
     lineage.extraction.status = "completed";
@@ -147,7 +206,7 @@ export const startExtractionTask = async (req, res) => {
 
     await emitLog(
       "DataExtractor",
-      `Successfully structured ${rawRecords.length} business entities from web data.`,
+      `Successfully structured ${rawRecords.length} entities from web intelligence batches.`,
       "success"
     );
 
@@ -160,6 +219,12 @@ export const startExtractionTask = async (req, res) => {
     lineage.deduplication.startedAt = Date.now();
 
     const dedupResult = await dataDeduplicatorNode({ extractedRecords: rawRecords });
+
+    // If more than targetCount, trim to targetCount
+    if (dedupResult.cleanRecords.length > targetCount) {
+      dedupResult.cleanRecords = dedupResult.cleanRecords.slice(0, targetCount);
+      dedupResult.stats.totalRecords = dedupResult.cleanRecords.length;
+    }
     
     logger.info(`[Task Controller] Deduplication complete. Output records: ${dedupResult.cleanRecords.length}. Removed: ${dedupResult.stats.duplicatesRemoved}`);
     logger.debug(`[Task Controller] Deduplication Stats: ${JSON.stringify(dedupResult.stats, null, 2)}`);
@@ -211,7 +276,7 @@ export const startExtractionTask = async (req, res) => {
       cleanRecords: dedupResult.cleanRecords,
       stats: dedupResult.stats,
       sources: dedupResult.sourcesList,
-      datasetTitle: extracted.datasetTitle,
+      datasetTitle,
       lineage,
       startTime,
     });
@@ -224,7 +289,7 @@ export const startExtractionTask = async (req, res) => {
       fieldStats,
       sampleRecords: dedupResult.cleanRecords.slice(0, 3),
       totalRecords: dedupResult.cleanRecords.length,
-      datasetTitle: extracted.datasetTitle,
+      datasetTitle,
     });
 
     sendEvent({ type: "awaiting_schema_confirmation", taskId });
@@ -309,11 +374,15 @@ export const confirmSchemaAndSave = async (req, res) => {
     lineage.storage.startedAt = Date.now();
 
     // Stage 5: Save Dataset into Storage
+    const titleForStorage = datasetTitle || (prompt.length > 40 ? `${prompt.slice(0, 38)}...` : prompt);
+    const initialSuggestions = generateContextualQuestions(titleForStorage, finalRecords);
+
     const dataset = await createDataset({
       userId: req.user?.userId || pending.task?.userId || null,
-      title: datasetTitle || (prompt.length > 40 ? `${prompt.slice(0, 38)}...` : prompt),
+      title: titleForStorage,
       prompt,
       records: finalRecords,
+      suggestedQuestions: initialSuggestions,
       stats,
       sources,
       schemaDefinition,

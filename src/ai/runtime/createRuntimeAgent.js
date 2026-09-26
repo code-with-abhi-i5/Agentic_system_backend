@@ -92,13 +92,13 @@ export const createRuntimeAgent = ({
         let toolCalls = 0;
         const toolCache = new Map();
 
-        let iteration = 1; // Used just for logging now
+        let iteration = 1;
+        const maxIterations = specification?.maxIterations || 6;
         let parseFailures = 0;
         const MAX_PARSE_FAILURES = 3;
 
-        // Removed the maxIterations bound. It will loop until it decides it is finished.
-        while (true) {
-            logger.info(`  [Iteration ${iteration}] 🧠 Invoking LLM... (Context length: ${conversation.length} messages)`);
+        while (iteration <= maxIterations) {
+            logger.info(`  [Iteration ${iteration}/${maxIterations}] 🧠 Invoking LLM... (Context length: ${conversation.length} messages)`);
             let response
             try {
 
@@ -211,6 +211,31 @@ export const createRuntimeAgent = ({
             }
 
             iteration++;
+        }
+
+        // Fallback finalization if maxIterations is reached without explicit return
+        logger.warn(`  ⚠️ Task "${task.id}" reached maximum iterations (${maxIterations}). Finalizing output...`);
+        const lastResponse = conversation[conversation.length - 1];
+        try {
+            const output = parseRuntimeOutput({
+                task,
+                response: lastResponse
+            });
+            return mergeOutputs({
+                task,
+                state,
+                output
+            });
+        } catch (err) {
+            logger.warn(`  Fallback parsing after max iterations: ${err.message}`);
+            const fallbackOutput = Object.fromEntries(
+                task.expectedOutput.map(k => [k, []])
+            );
+            return mergeOutputs({
+                task,
+                state,
+                output: fallbackOutput
+            });
         }
     };
 };
