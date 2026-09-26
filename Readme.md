@@ -1,107 +1,282 @@
-# AI Backend
+# Autonomous Agentic Data Engineering & Swarm Intelligence Platform (Backend)
 
-A highly sophisticated, production-ready AI orchestration backend built with **Node.js**, **Express**, **MongoDB**, and **LangGraph**.
+A production-grade, multi-agent AI data engineering backend built with **Node.js (Express 5)**, **LangChain / LangGraph**, **MongoDB (Mongoose 9)**, and **Groq Key Rotation**.
 
-This backend does not just respond to chat messages—it acts as an autonomous AI operating system. It parses user intents, compiles a dynamic LangGraph Execution Blueprint at runtime, and spawns modular AI agents that automatically resolve dependencies to complete the task.
+The platform deconstructs unstructured natural-language requests, plans dynamic multi-agent DAGs at runtime, executes web scraping/search swarms, normalizes extracted tabular entities, and performs fuzzy Levenshtein deduplication before streaming structured records to the client over Server-Sent Events (SSE).
+
+> 📄 **Complete Architecture Specification**: See [SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md) or [docs/SYSTEM_ARCHITECTURE.md](./docs/SYSTEM_ARCHITECTURE.md) for full 17-section technical documentation.
 
 ---
 
-## High-Level Architecture
+## 1. High-Level Architecture
 
-The system operates strictly on a **Plan-and-Execute** paradigm using a custom Meta-Graph architecture.
-
-### Execution Pipeline
-
-1. **Intent Analysis**: Classifies the incoming message to determine if it requires a simple conversational response or complex multi-step orchestration.
-2. **Meta-Architect**: Designs the `Execution Blueprint`—a JSON structure describing all necessary tasks, tools, and dependencies required to resolve the user's intent.
-3. **Agent Specification**: Generates individualized system prompts and assigns specific AI models to each task based on complexity and tool requirements.
-4. **Runtime Engine (`compileRuntimeGraph.js`)**: Dynamically compiles the `Execution Blueprint` into a brand new, one-shot LangGraph `StateGraph`.
-5. **Runtime Execution**: The newly compiled graph executes the spawned agents in parallel (or sequentially, based on dependencies) to compute the final result.
+The system operates on an autonomous **Compiler and Dynamic Runtime Execution Graph** (`src/ai/graphs/test.graph.js`).
 
 ```mermaid
 graph TD
-    A[User Request] -->|POST /api/chat/message| B(Intent Analyzer)
-    B -->|Complex Intent| C{Meta-Architect}
-    B -->|Simple Greeting| D[Direct Response Generator]
-    
-    C -->|Generates Blueprint| E(Agent Specification Generator)
-    E -->|Model & Tool Selection| F[[Dynamic Runtime Compiler]]
-    
-    F -->|Compiles Ephemeral StateGraph| G(Parallel/Sequential Sub-Agents)
-    
-    G --> H1[Agent 1: Web Search]
-    G --> H2[Agent 2: Code Runner]
-    G --> H3[Agent 3: Email Dispatch]
-    
-    H1 --> I{Output Merger}
-    H2 --> I
-    H3 --> I
-    
-    I --> J(Response Generator)
-    J -->|Server-Sent Events| K[Frontend Client]
+    %% Styling
+    classDef client fill:#1e1e2f,stroke:#6366f1,stroke-width:2px,color:#ffffff;
+    classDef gateway fill:#1e293b,stroke:#0ea5e9,stroke-width:2px,color:#ffffff;
+    classDef orchestrator fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#ffffff;
+    classDef worker fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#ffffff;
+    classDef datalayer fill:#451a03,stroke:#f59e0b,stroke-width:2px,color:#ffffff;
+    classDef external fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#ffffff;
+
+    subgraph Presentation ["Client Tier"]
+        Client["React 19 SPA (Vite)\nAIChatPanel, LiveSwarmTracker, DataTable"]:::client
+    end
+
+    subgraph Gateway ["API Gateway Tier (Express 5)"]
+        RateLimit["Rate Limiter & CORS"]:::gateway
+        AuthMW["Auth & JWT Middleware"]:::gateway
+        ChatRouter["Chat & Task Controllers\n(/api/chat/send, /api/dataset)"]:::gateway
+    end
+
+    subgraph LangGraph_Core ["LangGraph Dynamic Orchestration (testGraph)"]
+        Intent["Intent Analyzer Node"]:::orchestrator
+        Architect["Meta-Architect Node"]:::orchestrator
+        SpecGen["Agent Spec Generator Node"]:::orchestrator
+        Runtime["Runtime Execution Engine"]:::orchestrator
+        Extractor["Data Extractor Node (Zod Schema)"]:::orchestrator
+        Dedupe["Data Deduplicator (Levenshtein Distance)"]:::orchestrator
+        ResponseGen["Response Generator Node"]:::orchestrator
+    end
+
+    subgraph Tooling ["Tooling & Scraping Subsystem"]
+        Puppeteer["Headless Puppeteer Browser"]:::worker
+        Cheerio["Cheerio Scraper + Turndown"]:::worker
+        Tavily["Tavily Web Search API"]:::worker
+        VM["Node.js VM & Math.js Sandbox"]:::worker
+    end
+
+    subgraph Cloud_Inference ["AI Inference Gateway"]
+        GroqRotation["Groq Key Rotation Pool\n(Automated 429 Failover)"]:::external
+        Models["Llama 3.3 70B / Qwen 2.5 / Allam"]:::external
+    end
+
+    subgraph Storage ["Persistence Tier (MongoDB Atlas)"]
+        MongoDB[("MongoDB Database\nUsers, Conversations, Messages,\nDatasets, Tasks, Verifications")]:::datalayer
+    end
+
+    Client -->|HTTP POST Prompt| RateLimit
+    RateLimit --> AuthMW
+    AuthMW --> ChatRouter
+    ChatRouter -.->|SSE Stream Tokens & DAG States| Client
+    ChatRouter -->|Invoke Pipeline| Intent
+
+    Intent --> Architect
+    Architect --> SpecGen
+    SpecGen --> Runtime
+
+    Runtime --> Puppeteer
+    Runtime --> Cheerio
+    Runtime --> Tavily
+    Runtime --> VM
+
+    Runtime --> Extractor
+    Extractor --> Dedupe
+    Dedupe --> ResponseGen
+
+    Extractor -.->|Persist Dataset & Lineage| MongoDB
+    ResponseGen -.->|Save Assistant Message| MongoDB
+
+    Intent & Architect & SpecGen & Runtime & Extractor & ResponseGen <-->|Inference| GroqRotation
+    GroqRotation --> Models
 ```
 
 ---
 
-## Multi-Model Load Balancing
+## 2. Core Execution Pipeline
 
-The orchestration engine leverages a diverse suite of LLMs configured in `MODEL_REGISTRY` to prevent API rate limits and optimize latency.
+When a user initiates an extraction task via `/api/chat/send`:
 
-### Available Models (`src/ai/models/registry.js`)
-- **GPT-120B / GPT-20B**: Primary orchestrators (Meta-Architect, Agent Specifications) and heavy tool-use runtime agents.
-- **Qwen27B**: Specialized tasks requiring robust reasoning or markdown generation (e.g., `Response Generator`).
-- **Allam / Llama (22m, 86m)**: Fast, toolless models used for simple generation and summarization (e.g., `Title Generator`).
-- **Minimax / GPTSafeguard**: Secondary load-balanced models.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User / Analyst
+    participant UI as React Frontend
+    participant API as Express Gateway
+    participant DB as MongoDB Atlas
+    participant Graph as LangGraph Engine
+    participant Groq as Groq Rotation Pool
+    participant Tools as Tool Fleet (Puppeteer / Tavily)
 
-> [!NOTE]
-> The orchestrator strictly avoids injecting the `submit_final_answer` tool (or any other tools) into the prompt when dispatching tasks to toolless models like Llama and Allam. Instead, these models are instructed to output raw JSON which our custom parser intercepts and sanitizes.
+    User->>UI: Enters extraction prompt
+    UI->>API: POST /api/chat/send (Bearer Token)
+    API->>DB: Save User Prompt to Messages
+    API-->>UI: HTTP 200 OK (text/event-stream open)
+
+    API->>Graph: Invoke testGraph.streamEvents({ userQuery })
+    
+    Graph->>API: Event: on_chain_start (intentAnalyzer)
+    API-->>UI: SSE: {"node": "intentAnalyzer", "status": "active"}
+    Graph->>Groq: Intent Classification Prompt
+    Groq-->>Graph: Intent: DATA_EXTRACTION
+
+    Graph->>API: Event: on_chain_start (metaArchitect)
+    API-->>UI: SSE: {"node": "metaArchitect", "status": "active"}
+    Graph->>Groq: Subtask Blueprint Prompt
+    Groq-->>Graph: Sub-agent DAG (Searcher -> Scraper)
+
+    Graph->>API: Event: on_chain_start (runtimeExecution)
+    API-->>UI: SSE: {"node": "runtimeExecution", "status": "active"}
+    Graph->>Tools: Invoke Tavily Web Search
+    Tools-->>Graph: Ranked Result URLs
+    Graph->>Tools: Invoke Headless Puppeteer Browser
+    Tools-->>Graph: Rendered DOM Content
+
+    Graph->>API: Event: on_chain_start (dataExtractor)
+    API-->>UI: SSE: {"node": "dataExtractor", "status": "active"}
+    Graph->>Groq: Extract typed JSON records
+    Groq-->>Graph: Raw JSON Rows
+
+    Graph->>API: Event: on_chain_start (dataDeduplicator)
+    API-->>UI: SSE: {"node": "dataDeduplicator", "status": "active"}
+    Graph->>Graph: Compute Levenshtein distance on entity keys
+    Note over Graph: Deduplicates rows & consolidates records
+
+    Graph->>DB: Save Dataset (rows, schema metadata, lineage URLs)
+    Graph->>API: Event: on_chain_start (responseGenerator)
+    API-->>UI: SSE: {"node": "responseGenerator", "status": "active"}
+    Graph->>Groq: Synthesize markdown report
+    Groq-->>Graph: Report tokens
+    Graph-->>API: Streamed tokens
+    API-->>UI: SSE: {"type": "token", "content": "..."}
+    API-->>UI: SSE: {"event": "done", "datasetId": "..."}
+```
 
 ---
 
-## Server-Sent Events (SSE) Streaming
+## 3. Key Subsystems
 
-The API streams real-time updates directly to the frontend over SSE.
+### 3.1 LangGraph Orchestration Nodes (`src/ai/nodes/`)
+- **`intent.node.js`**: Analyzes user intent (Extraction, Research, Dataset Query, General Chat).
+- **`architect.node.js`**: Decomposes high-level extraction prompts into executable sub-agent DAG blueprints.
+- **`agentSpecification.node.js`**: Binds system prompts, output constraints, and tools to dynamic sub-agents.
+- **`runtime.node.js`**: Ephemerally executes compiled agents with dependency resolution.
+- **`dataExtractor.node.js`**: Normalizes unstructured agent traces into validated JSON schemas.
+- **`dataDeduplicator.node.js`**: Computes fuzzy edit-distance metrics (`fastest-levenshtein`) to purge duplicate entities.
+- **`datasetChat.node.js`**: Enables in-situ conversational querying over saved datasets.
+- **`responseGenerator.node.js`**: Produces markdown executive summaries and analytical reports.
 
-When a message is POSTed to `/api/chat/message`, the backend consumes the `v2 streamEvents` generator from LangGraph and emits the following event types:
+### 3.2 Tool & Web Scraping Ecosystem (`src/ai/tools/`)
+- **`advancedBrowser.tool.js`**: Headless Puppeteer Chrome cluster; handles dynamic SPA client-side rendering and asset blocking.
+- **`webScraper.tool.js`**: High-throughput static HTML scraper with Cheerio and Turndown Markdown conversion.
+- **`webSearch.tool.js`**: Tavily and DuckDuckGo API integration for live SERP retrieval.
+- **`jsExecution.tool.js` & `calculator.tool.js`**: Isolated Node.js VM context and Math.js engine for transformations.
+- **`databaseAnalytics.tool.js`**: Statistical distributions, sums, averages, and group-by calculations.
 
-- `type: "status"`: Emits `"Processing [Node Name]..."` for core orchestration nodes, and `"Agent Name: [Agent Role]"` when a dynamic runtime agent fires.
-- `type: "agents"`: Emits an array of agent specifications immediately after the `agentSpecificationGenerator` concludes, driving the frontend visualization.
-- `type: "content"`: Emits the final markdown chunks generated by the `Response Generator`.
+### 3.3 Groq Rotation Pool & Resilience (`src/config/groqRotation.js`)
+- Dynamically cycles across multiple Groq API keys on HTTP 429 quota exhaustion.
+- Automated exponential jitter backoff via `src/utils/retryWithRateLimit.js`.
+- Multi-model registry supporting **Llama 3.3 70B**, **Qwen 2.5 32B**, **Llama 3.1 8B**, and **Gemini 2.0**.
 
 ---
 
-## Directory Structure
+## 4. Database Schema (MongoDB Mongoose 9)
+
+- **`User`**: Account credentials, bcrypt hash, role (`user`/`admin`), refresh tokens.
+- **`Verification`**: Encrypted OTPs for email validation with 10-minute automatic TTL index expiration.
+- **`Conversation`**: Chat threads, pinned flags, last message timestamps, auto-generated titles.
+- **`Message`**: Chat history, role (`user`/`assistant`), token counts, node execution traces.
+- **`Dataset`**: Primary extracted tabular entities, schema definition, provenance lineage, export records.
+- **`Task`**: Long-running background extraction jobs, progress tracking ($0\%-100\%$), agent execution logs.
+
+---
+
+## 5. API Endpoints Reference
+
+### Authentication (`/api/auth`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/auth/register` | Register new user account |
+| `POST` | `/api/auth/login` | Login with credentials (returns JWT + set HTTP-only cookie) |
+| `POST` | `/api/auth/refresh-token` | Renew expired access token using refresh cookie |
+| `POST` | `/api/auth/verify-otp` | Verify email OTP |
+| `POST` | `/api/auth/logout` | Clear refresh token session |
+
+### AI Chat & Swarm Execution (`/api/chat`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/chat/send` | Send extraction/chat prompt; returns SSE event stream |
+| `GET` | `/api/conversation` | Fetch all user conversations |
+| `GET` | `/api/conversation/:id/messages` | Get linear message history for a conversation |
+
+### Datasets & Analytics (`/api/dataset`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/dataset` | List user's extracted datasets |
+| `GET` | `/api/dataset/:id` | Fetch specific dataset records and schema |
+| `POST` | `/api/dataset/:id/chat` | Conversational Q&A directly over dataset rows |
+| `GET` | `/api/dataset/:id/export?format=csv` | Export dataset as standard RFC-4180 CSV |
+| `GET` | `/api/dataset/:id/lineage` | Fetch provenance origin URLs and agent DAG trace |
+
+### Background Tasks (`/api/task`)
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `POST` | `/api/task/create` | Launch long-running multi-agent extraction |
+| `GET` | `/api/task/:id` | Poll background task status, progress %, and logs |
+
+---
+
+## 6. Directory Structure
 
 ```text
 src/
 ├── ai/
-│   ├── compiler/        # Dynamic LangGraph compilation logic
-│   ├── models/          # Model registry and initialization
-│   ├── nodes/           # LangGraph nodes (Architect, Intent, etc)
-│   ├── prompts/         # System instructions
-│   ├── runtime/         # Ephemeral runtime agent execution engine
-│   ├── state/           # State schemas for orchestration graphs
-│   ├── tools/           # Tavily and custom tool registries
-│   └── validators/      # Zod validation layers for Blueprints
-├── config/              # MongoDB and Environment configurations
-├── middleware/          # Express middlewares (JWT Auth, Error handling)
-├── modules/             # REST endpoints (Auth, Chat, Conversations)
-└── utils/               # Rate limit retry wrappers, loggers
+│   ├── compiler/        # compileRuntimeGraph.js (dynamic LangGraph compilation)
+│   ├── graphs/          # test.graph.js (core pipeline), chat.graph.js
+│   ├── models/          # Multi-model registry (Groq Llama 3.3, Qwen, Gemini)
+│   ├── nodes/           # LangGraph nodes (intent, architect, extractor, dedupe)
+│   ├── prompts/         # Structured prompt templates
+│   ├── runtime/         # Ephemeral runtime agent executor & input/output mergers
+│   ├── state/           # Typed LangGraph state definitions
+│   ├── tools/           # Puppeteer, Tavily, Cheerio, VM, calculator, analytics
+│   └── validators/      # Zod blueprint and graph validators
+├── config/              # db.js (Mongoose), env.js, groqRotation.js
+├── middleware/          # auth.js (JWT), rateLimiter.js, errorHandler.js, logger.js
+├── modules/             # auth, chat, conversation, dataset, message, task
+├── routes/              # Central express router (index.js)
+├── utils/               # fileStorage.js, extractHallucinatedJsonTool.js, logger.js
+├── app.js               # Express application configuration
+└── server.js            # Database connection & HTTP server bootstrap
 ```
 
 ---
 
-## Installation & Execution
+## 7. Installation & Setup
 
-1. **Install Dependencies**
+### Prerequisites
+- Node.js >= 20.x
+- MongoDB instance (local or MongoDB Atlas)
+- Groq API Key(s) & Tavily API Key
+
+### Setup Steps
+1. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. **Configure Environment**
-   Create a `.env` file from `.env.example` and supply your database URI and API keys (Groq, Tavily, Portkey, etc.).
+2. **Configure environment variables**:
+   Create `.env` using `.env.example`:
+   ```env
+   PORT=5000
+   NODE_ENV=development
+   CLIENT_URL=http://localhost:5173
+   MONGODB_URI=mongodb://localhost:27017/agentic_system
+   JWT_SECRET=your_jwt_secret_key_here
+   JWT_REFRESH_SECRET=your_jwt_refresh_secret_here
 
-3. **Start the Application**
+   # Groq Keys (Supports multiple keys for automated rotation)
+   GROQ_API_KEY=gsk_...
+   GROQ_API_KEY_1=gsk_...
+   GROQ_API_KEY_2=gsk_...
+
+   # External Tools
+   TAVILY_API_KEY=tvly-...
+   ```
+
+3. **Start the development server**:
    ```bash
    npm run dev
    ```
