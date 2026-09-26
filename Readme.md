@@ -23,13 +23,13 @@ graph TD
     classDef external fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#ffffff;
 
     subgraph Presentation ["Client Tier"]
-        Client["React 19 SPA (Vite)\nAIChatPanel, LiveSwarmTracker, DataTable"]:::client
+        Client["React 19 SPA (Vite)<br/>AIChatPanel, LiveSwarmTracker, DataTable"]:::client
     end
 
     subgraph Gateway ["API Gateway Tier (Express 5)"]
-        RateLimit["Rate Limiter & CORS"]:::gateway
-        AuthMW["Auth & JWT Middleware"]:::gateway
-        ChatRouter["Chat & Task Controllers\n(/api/chat/send, /api/dataset)"]:::gateway
+        RateLimit["Rate Limiter and CORS"]:::gateway
+        AuthMW["Auth and JWT Middleware"]:::gateway
+        ChatRouter["Chat and Task Controllers<br/>(/api/chat/send, /api/dataset)"]:::gateway
     end
 
     subgraph LangGraph_Core ["LangGraph Dynamic Orchestration (testGraph)"]
@@ -42,27 +42,27 @@ graph TD
         ResponseGen["Response Generator Node"]:::orchestrator
     end
 
-    subgraph Tooling ["Tooling & Scraping Subsystem"]
+    subgraph Tooling ["Tooling and Scraping Subsystem"]
         Puppeteer["Headless Puppeteer Browser"]:::worker
         Cheerio["Cheerio Scraper + Turndown"]:::worker
         Tavily["Tavily Web Search API"]:::worker
-        VM["Node.js VM & Math.js Sandbox"]:::worker
+        VM["Node.js VM and Math.js Sandbox"]:::worker
     end
 
     subgraph Cloud_Inference ["AI Inference Gateway"]
-        GroqRotation["Groq Key Rotation Pool\n(Automated 429 Failover)"]:::external
+        GroqRotation["Groq Key Rotation Pool<br/>(Automated 429 Failover)"]:::external
         Models["Llama 3.3 70B / Qwen 2.5 / Allam"]:::external
     end
 
     subgraph Storage ["Persistence Tier (MongoDB Atlas)"]
-        MongoDB[("MongoDB Database\nUsers, Conversations, Messages,\nDatasets, Tasks, Verifications")]:::datalayer
+        MongoDB[("MongoDB Database<br/>Users, Conversations, Messages,<br/>Datasets, Tasks, Verifications")]:::datalayer
     end
 
-    Client -->|HTTP POST Prompt| RateLimit
+    Client -->|"HTTP POST Prompt"| RateLimit
     RateLimit --> AuthMW
     AuthMW --> ChatRouter
-    ChatRouter -.->|SSE Stream Tokens & DAG States| Client
-    ChatRouter -->|Invoke Pipeline| Intent
+    ChatRouter -.->|"SSE Stream Tokens and DAG States"| Client
+    ChatRouter -->|"Invoke Pipeline"| Intent
 
     Intent --> Architect
     Architect --> SpecGen
@@ -77,10 +77,10 @@ graph TD
     Extractor --> Dedupe
     Dedupe --> ResponseGen
 
-    Extractor -.->|Persist Dataset & Lineage| MongoDB
-    ResponseGen -.->|Save Assistant Message| MongoDB
+    Extractor -.->|"Persist Dataset and Lineage"| MongoDB
+    ResponseGen -.->|"Save Assistant Message"| MongoDB
 
-    Intent & Architect & SpecGen & Runtime & Extractor & ResponseGen <-->|Inference| GroqRotation
+    Intent & Architect & SpecGen & Runtime & Extractor & ResponseGen <-->|"Inference"| GroqRotation
     GroqRotation --> Models
 ```
 

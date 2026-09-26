@@ -73,58 +73,58 @@ graph TD
     classDef external fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#ffffff;
     classDef security fill:#4c0519,stroke:#f43f5e,stroke-width:2px,color:#ffffff;
 
-    subgraph Client_Layer ["Client & Presentation Tier (React 19 / Vite)"]
-        UI_Chat["AIChatPanel\n(SSE Stream & Markdown)"]:::client
-        UI_Swarm["LiveSwarmTracker\n(DAG Nodes & Agent Telemetry)"]:::client
-        UI_Table["DataTable & LineageFlow\n(Dataset Grid & Provenance)"]:::client
-        UI_Studio["PromptStudio & Governance\n(Configuration & Audit)"]:::client
+    subgraph Client_Layer ["Client and Presentation Tier (React 19 / Vite)"]
+        UI_Chat["AIChatPanel<br/>(SSE Stream and Markdown)"]:::client
+        UI_Swarm["LiveSwarmTracker<br/>(DAG Nodes and Agent Telemetry)"]:::client
+        UI_Table["DataTable and LineageFlow<br/>(Dataset Grid and Provenance)"]:::client
+        UI_Studio["PromptStudio and Governance<br/>(Configuration and Audit)"]:::client
     end
 
-    subgraph Gateway_Layer ["API Gateway & Control Tier (Express 5 / Node.js)"]
-        MW_RateLimit["Rate Limiter Middleware\n(DDoS & Abuse Prevention)"]:::security
-        MW_Auth["Auth & JWT Middleware\n(Bearer Token & Cookie Session)"]:::security
-        MW_Validator["Zod Schema Validator\n(Chat & Auth Input Contracts)"]:::gateway
-        Router_Index["Central API Router\n(/api/auth, /api/chat, /api/dataset, /api/task)"]:::gateway
+    subgraph Gateway_Layer ["API Gateway and Control Tier (Express 5 / Node.js)"]
+        MW_RateLimit["Rate Limiter Middleware<br/>(DDoS and Abuse Prevention)"]:::security
+        MW_Auth["Auth and JWT Middleware<br/>(Bearer Token and Cookie Session)"]:::security
+        MW_Validator["Zod Schema Validator<br/>(Chat and Auth Input Contracts)"]:::gateway
+        Router_Index["Central API Router<br/>(/api/auth, /api/chat, /api/dataset, /api/task)"]:::gateway
     end
 
     subgraph Orchestration_Layer ["Agentic Swarm Engine (LangGraph / LangChain)"]
-        Node_Intent["Intent Analyzer Node\n(Categorization & Routing)"]:::orchestrator
-        Node_Architect["Meta-Architect Node\n(DAG Planner & Task Decomposition)"]:::orchestrator
-        Node_SpecGen["Agent Spec Generator\n(Prompt & Tool Compiler)"]:::orchestrator
-        Node_Runtime["Runtime Execution Engine\n(Dynamic Agent DAG Executor)"]:::orchestrator
-        Node_Extractor["Data Extractor Node\n(Structured JSON Normalizer)"]:::orchestrator
-        Node_Dedupe["Data Deduplicator Node\n(Levenshtein Distance Engine)"]:::orchestrator
-        Node_Response["Response Generator Node\n(Final Report & Markdown Synthesis)"]:::orchestrator
-        Node_DataChat["Dataset Chat Node\n(In-situ Conversational Q&A)"]:::orchestrator
+        Node_Intent["Intent Analyzer Node<br/>(Categorization and Routing)"]:::orchestrator
+        Node_Architect["Meta-Architect Node<br/>(DAG Planner and Task Decomposition)"]:::orchestrator
+        Node_SpecGen["Agent Spec Generator<br/>(Prompt and Tool Compiler)"]:::orchestrator
+        Node_Runtime["Runtime Execution Engine<br/>(Dynamic Agent DAG Executor)"]:::orchestrator
+        Node_Extractor["Data Extractor Node<br/>(Structured JSON Normalizer)"]:::orchestrator
+        Node_Dedupe["Data Deduplicator Node<br/>(Levenshtein Distance Engine)"]:::orchestrator
+        Node_Response["Response Generator Node<br/>(Final Report and Markdown Synthesis)"]:::orchestrator
+        Node_DataChat["Dataset Chat Node<br/>(In-situ Conversational QandA)"]:::orchestrator
     end
 
-    subgraph Tool_Ecosystem ["Sandboxed Tooling & Scraping Subsystem"]
-        Tool_Puppeteer["Advanced Headless Browser\n(Puppeteer JS DOM Execution)"]:::worker
-        Tool_Cheerio["Web Scraper\n(Cheerio + Turndown Markdown)"]:::worker
-        Tool_Search["Web Search Engine\n(Tavily & DuckDuckGo API)"]:::worker
-        Tool_Sandbox["JS Sandbox & Calculator\n(Node VM & Math.js)"]:::worker
-        Tool_Export["Export & Doc Generator\n(JSON2CSV & PDF/MD Builder)"]:::worker
+    subgraph Tool_Ecosystem ["Sandboxed Tooling and Scraping Subsystem"]
+        Tool_Puppeteer["Advanced Headless Browser<br/>(Puppeteer JS DOM Execution)"]:::worker
+        Tool_Cheerio["Web Scraper<br/>(Cheerio + Turndown Markdown)"]:::worker
+        Tool_Search["Web Search Engine<br/>(Tavily and DuckDuckGo API)"]:::worker
+        Tool_Sandbox["JS Sandbox and Calculator<br/>(Node VM and Math.js)"]:::worker
+        Tool_Export["Export and Doc Generator<br/>(JSON2CSV and PDF/MD Builder)"]:::worker
     end
 
-    subgraph AI_Inference_Layer ["AI Inference & Provider Gateway"]
-        Groq_Rotation["Groq Key Rotation Pool\n(Automated 429 Failover)"]:::external
-        LLM_Registry["Multi-Model Registry\n(Llama 3.3 70B, Qwen 2.5, Allam, Gemini)"]:::external
+    subgraph AI_Inference_Layer ["AI Inference and Provider Gateway"]
+        Groq_Rotation["Groq Key Rotation Pool<br/>(Automated 429 Failover)"]:::external
+        LLM_Registry["Multi-Model Registry<br/>(Llama 3.3 70B, Qwen 2.5, Allam, Gemini)"]:::external
     end
 
-    subgraph Persistence_Layer ["Storage & Database Tier (MongoDB Atlas)"]
-        DB_Users[("Users Collection\n(Bcrypt Hashes & Refresh Tokens)")]:::datalayer
-        DB_AuthTokens[("Verifications Collection\n(OTP TTL Records)")]:::datalayer
-        DB_Convs[("Conversations Collection\n(Threads, Pinned, Auto-Titles)")]:::datalayer
-        DB_Messages[("Messages Collection\n(User Prompts, Agent Steps)")]:::datalayer
-        DB_Datasets[("Datasets Collection\n(Rows, Lineage, Schema v1/v2)")]:::datalayer
-        DB_Tasks[("Tasks Collection\n(Swarm Progress & Metrics)")]:::datalayer
+    subgraph Persistence_Layer ["Storage and Database Tier (MongoDB Atlas)"]
+        DB_Users[("Users Collection<br/>Bcrypt Hashes and Refresh Tokens")]:::datalayer
+        DB_AuthTokens[("Verifications Collection<br/>OTP TTL Records")]:::datalayer
+        DB_Convs[("Conversations Collection<br/>Threads, Pinned, Auto-Titles")]:::datalayer
+        DB_Messages[("Messages Collection<br/>User Prompts, Agent Steps")]:::datalayer
+        DB_Datasets[("Datasets Collection<br/>Rows, Lineage, Schema v1/v2")]:::datalayer
+        DB_Tasks[("Tasks Collection<br/>Swarm Progress and Metrics")]:::datalayer
     end
 
     %% UI to Gateway Connections
-    UI_Chat -->|HTTP POST /api/chat/send (Initiate Request)| MW_RateLimit
-    UI_Chat -.->|SSE EventSource Stream (Tokens & Node State)| Router_Index
-    UI_Table -->|GET /api/dataset/:id & Export CSV| Router_Index
-    UI_Studio -->|GET /api/task/:id & Status Poll| Router_Index
+    UI_Chat -->|"HTTP POST /api/chat/send - Initiate Request"| MW_RateLimit
+    UI_Chat -.->|"SSE EventSource Stream - Tokens and Node State"| Router_Index
+    UI_Table -->|"GET /api/dataset/:id and Export CSV"| Router_Index
+    UI_Studio -->|"GET /api/task/:id and Status Poll"| Router_Index
 
     %% Gateway Flow
     MW_RateLimit --> MW_Auth
@@ -132,36 +132,36 @@ graph TD
     MW_Validator --> Router_Index
 
     %% Router to Services & LangGraph
-    Router_Index -->|Execute Pipeline| Node_Intent
-    Router_Index -->|Direct Dataset Query| Node_DataChat
-    Router_Index -->|Query / Update State| Persistence_Layer
+    Router_Index -->|"Execute Pipeline"| Node_Intent
+    Router_Index -->|"Direct Dataset Query"| Node_DataChat
+    Router_Index -->|"Query / Update State"| Persistence_Layer
 
     %% Orchestrator Internal Execution Chain
-    Node_Intent -->|Intent & Strategy Context| Node_Architect
-    Node_Architect -->|Decomposed Subtask DAG| Node_SpecGen
-    Node_SpecGen -->|Compiled Dynamic Graph| Node_Runtime
-    Node_Runtime -->|Scraped HTML & Unstructured Traces| Node_Extractor
-    Node_Extractor -->|Extracted Tabular Records| Node_Dedupe
-    Node_Dedupe -->|Normalized Deduplicated Dataset| Node_Response
+    Node_Intent -->|"Intent and Strategy Context"| Node_Architect
+    Node_Architect -->|"Decomposed Subtask DAG"| Node_SpecGen
+    Node_SpecGen -->|"Compiled Dynamic Graph"| Node_Runtime
+    Node_Runtime -->|"Scraped HTML and Unstructured Traces"| Node_Extractor
+    Node_Extractor -->|"Extracted Tabular Records"| Node_Dedupe
+    Node_Dedupe -->|"Normalized Deduplicated Dataset"| Node_Response
 
     %% Runtime to Tools
-    Node_Runtime -->|Scrape Dynamic Pages| Tool_Puppeteer
-    Node_Runtime -->|Fast Static Parse| Tool_Cheerio
-    Node_Runtime -->|Live Web Query| Tool_Search
-    Node_Runtime -->|Compute & Transform| Tool_Sandbox
+    Node_Runtime -->|"Scrape Dynamic Pages"| Tool_Puppeteer
+    Node_Runtime -->|"Fast Static Parse"| Tool_Cheerio
+    Node_Runtime -->|"Live Web Query"| Tool_Search
+    Node_Runtime -->|"Compute and Transform"| Tool_Sandbox
 
     %% Tools to Web
-    Tool_Search -->|HTTPS Web Search API| AI_Inference_Layer
-    Tool_Puppeteer -->|Render JavaScript & DOM| AI_Inference_Layer
+    Tool_Search -->|"HTTPS Web Search API"| AI_Inference_Layer
+    Tool_Puppeteer -->|"Render JavaScript and DOM"| AI_Inference_Layer
 
     %% Orchestrator to LLM Inference
-    Node_Intent & Node_Architect & Node_SpecGen & Node_Runtime & Node_Extractor & Node_Response -->|Inference Calls| Groq_Rotation
-    Groq_Rotation -->|Round-Robin Key Routing| LLM_Registry
+    Node_Intent & Node_Architect & Node_SpecGen & Node_Runtime & Node_Extractor & Node_Response -->|"Inference Calls"| Groq_Rotation
+    Groq_Rotation -->|"Round-Robin Key Routing"| LLM_Registry
 
     %% Data Extraction Persistence
-    Node_Extractor -.->|Save Schema & Rows| DB_Datasets
-    Node_Response -.->|Persist Assistant Message| DB_Messages
-    Node_Runtime -.->|Update Progress & Execution Logs| DB_Tasks
+    Node_Extractor -.->|"Save Schema and Rows"| DB_Datasets
+    Node_Response -.->|"Persist Assistant Message"| DB_Messages
+    Node_Runtime -.->|"Update Progress and Execution Logs"| DB_Tasks
 ```
 
 ### 2.3 Component Responsibilities
@@ -372,10 +372,10 @@ flowchart TD
     classDef store fill:#312e81,stroke:#8b5cf6,stroke-width:2px,color:#fff;
     classDef output fill:#14532d,stroke:#22c55e,stroke-width:2px,color:#fff;
 
-    subgraph Phase_1 ["Phase 1: Ingestion & Intent Analysis"]
+    subgraph Phase_1 ["Phase 1: Ingestion and Intent Analysis"]
         U_Prompt["User Natural Language Query"]:::input
         FE_Req["React AIChatPanel Formatter"]:::input
-        GW_Auth["Gateway Authentication & Rate Check"]:::process
+        GW_Auth["Gateway Authentication and Rate Check"]:::process
         Node_Intent["Intent Analyzer (Classification)"]:::process
     end
 
@@ -385,33 +385,33 @@ flowchart TD
         Dynamic_DAG["Dynamic LangGraph Runtime State"]:::process
     end
 
-    subgraph Phase_3 ["Phase 3: Execution & Harvesting Fleet"]
+    subgraph Phase_3 ["Phase 3: Execution and Harvesting Fleet"]
         Agent_Searcher["Web Search Worker"]:::agent
         Agent_Scraper["DOM Scraping Worker"]:::agent
         Tool_Tavily["Tavily Search API"]:::tool
         Tool_Puppeteer["Headless Puppeteer Browser"]:::tool
         Tool_Cheerio["Cheerio / Turndown Parser"]:::tool
-        Raw_Traces["Aggregated Text & DOM Traces"]:::process
+        Raw_Traces["Aggregated Text and DOM Traces"]:::process
     end
 
-    subgraph Phase_4 ["Phase 4: Synthesis & Normalization"]
+    subgraph Phase_4 ["Phase 4: Synthesis and Normalization"]
         Node_Extract["Data Extractor Node (Zod Schema)"]:::process
         Raw_Rows["Raw Extracted JSON Records"]:::process
         Node_Dedupe["Levenshtein Distance Deduplicator"]:::process
         Clean_Rows["Clean Normalized Tabular Rows"]:::process
     end
 
-    subgraph Phase_5 ["Phase 5: Storage, Audit & Streaming"]
+    subgraph Phase_5 ["Phase 5: Storage, Audit and Streaming"]
         DB_Dataset[("MongoDB: datasets Collection")]:::store
         DB_Messages[("MongoDB: messages Collection")]:::store
         Node_Report["Response Generator Node (Markdown Synthesis)"]:::process
         SSE_Stream["Server-Sent Events (SSE) Stream"]:::output
-        FE_Table["Frontend DataTable & Swarm UI"]:::output
+        FE_Table["Frontend DataTable and Swarm UI"]:::output
     end
 
     %% Flow Connections
     U_Prompt --> FE_Req
-    FE_Req -->|HTTP POST + Bearer JWT| GW_Auth
+    FE_Req -->|"HTTP POST + Bearer JWT"| GW_Auth
     GW_Auth --> Node_Intent
     Node_Intent --> Node_Arch
     Node_Arch --> Node_Spec
@@ -436,7 +436,7 @@ flowchart TD
     Clean_Rows --> Node_Report
     Node_Report --> DB_Messages
     Node_Report --> SSE_Stream
-    Clean_Rows -.->|Dataset Created Event| SSE_Stream
+    Clean_Rows -.->|"Dataset Created Event"| SSE_Stream
     SSE_Stream --> FE_Table
 ```
 
@@ -720,33 +720,33 @@ graph TD
 
     Users["Global Users / Analysts"]:::client
 
-    subgraph CDN_Edge ["Edge Delivery & Hosting (Vercel / Netlify)"]
-        Vercel_Edge["Frontend Static Hosting & CDN\n(React 19 Vite Production Build)"]:::edge
+    subgraph CDN_Edge ["Edge Delivery and Hosting (Vercel / Netlify)"]
+        Vercel_Edge["Frontend Static Hosting and CDN<br/>(React 19 Vite Production Build)"]:::edge
     end
 
     subgraph Cloud_Compute ["Application Runtime (Render / Railway / Docker)"]
-        Container_API["Express 5 Node.js Container\n(API Gateway, LangGraph Orchestrator)"]:::compute
-        Container_Browser["Headless Chromium Fleet\n(Puppeteer Environment Dependencies)"]:::compute
+        Container_API["Express 5 Node.js Container<br/>(API Gateway, LangGraph Orchestrator)"]:::compute
+        Container_Browser["Headless Chromium Fleet<br/>(Puppeteer Environment Dependencies)"]:::compute
     end
 
     subgraph Cloud_Services ["External Managed Services"]
-        Groq_Cloud["Groq Cloud API Gateway\n(Ultra-fast LPU Model Inference)"]:::cloud
-        Tavily_Cloud["Tavily Search Service\n(AI-tailored Web SERP Results)"]:::cloud
-        SMTP_Server["Transactional Mail Service\n(SendGrid / Mailgun / SMTP)"]:::cloud
+        Groq_Cloud["Groq Cloud API Gateway<br/>(Ultra-fast LPU Model Inference)"]:::cloud
+        Tavily_Cloud["Tavily Search Service<br/>(AI-tailored Web SERP Results)"]:::cloud
+        SMTP_Server["Transactional Mail Service<br/>(SendGrid / Mailgun / SMTP)"]:::cloud
     end
 
     subgraph Data_Storage ["Managed Data Tier (MongoDB Atlas)"]
-        Mongo_Atlas[("MongoDB Atlas Replica Set\n(Encrypted at rest, Automated Backups)")]:::db
+        Mongo_Atlas[("MongoDB Atlas Replica Set<br/>Encrypted at rest, Automated Backups")]:::db
     end
 
     %% Network Routes
-    Users -->|HTTPS / DNS Anycast| Vercel_Edge
-    Vercel_Edge -->|HTTPS REST & SSE Stream| Container_API
+    Users -->|"HTTPS / DNS Anycast"| Vercel_Edge
+    Vercel_Edge -->|"HTTPS REST and SSE Stream"| Container_API
     Container_API <--> Container_Browser
-    Container_API -->|Inference via API Keys| Groq_Cloud
-    Container_API -->|SERP Search Queries| Tavily_Cloud
-    Container_API -->|Dispatch Verification Emails| SMTP_Server
-    Container_API -->|Mongoose Wire Protocol / TLS| Mongo_Atlas
+    Container_API -->|"Inference via API Keys"| Groq_Cloud
+    Container_API -->|"SERP Search Queries"| Tavily_Cloud
+    Container_API -->|"Dispatch Verification Emails"| SMTP_Server
+    Container_API -->|"Mongoose Wire Protocol / TLS"| Mongo_Atlas
 ```
 
 - **Frontend Hosting**: Vercel or Netlify serving static assets through global edge CDN.
@@ -822,34 +822,34 @@ graph LR
     classDef groq fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#fff;
     classDef db fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#fff;
 
-    Client["React 19 SPA\n(Vite + Tailwind/Custom CSS)\nChat, Swarm Tracker, Table"]:::client
-    Gateway["Express 5 Gateway\nAuth, Rate Limit, Zod\nSSE Stream Controller"]:::gateway
+    Client["React 19 SPA<br/>(Vite + Tailwind/Custom CSS)<br/>Chat, Swarm Tracker, Table"]:::client
+    Gateway["Express 5 Gateway<br/>Auth, Rate Limit, Zod<br/>SSE Stream Controller"]:::gateway
     
     subgraph Swarm_Brain ["LangGraph Swarm Core"]
-        Compiler["Graph Compiler\n(Intent & Architect)"]:::langgraph
-        Runtime["Runtime Executor\n(Parallel Agent Swarm)"]:::langgraph
-        Synthesizer["Data Synthesizer\n(Extractor & Deduplicator)"]:::langgraph
+        Compiler["Graph Compiler<br/>(Intent and Architect)"]:::langgraph
+        Runtime["Runtime Executor<br/>(Parallel Agent Swarm)"]:::langgraph
+        Synthesizer["Data Synthesizer<br/>(Extractor and Deduplicator)"]:::langgraph
     end
 
-    subgraph Tools ["Tool & Scraper Fleet"]
+    subgraph Tools ["Tool and Scraper Fleet"]
         Browser["Puppeteer Browser"]:::tool
         Search["Tavily Search API"]:::tool
         Cheerio["Cheerio Scraper"]:::tool
     end
 
-    Inference["Groq Key Rotation Pool\n(Llama-3.3-70B, Qwen-2.5)"]:::groq
-    Database[("MongoDB Atlas\nUsers, Messages,\nDatasets, Tasks")]:::db
+    Inference["Groq Key Rotation Pool<br/>(Llama-3.3-70B, Qwen-2.5)"]:::groq
+    Database[("MongoDB Atlas<br/>Users, Messages,<br/>Datasets, Tasks")]:::db
 
-    Client -->|1. Prompt / HTTP POST| Gateway
-    Gateway -.->|2. SSE Token & State Stream| Client
-    Gateway -->|3. Invoke Workflow| Compiler
-    Compiler -->|4. Dynamic Agent DAG| Runtime
-    Runtime -->|5. Scrape & Search| Tools
-    Tools -->|6. Raw Text Traces| Runtime
-    Runtime -->|7. Candidate Records| Synthesizer
-    Synthesizer -->|8. Normalized Dataset| Database
-    Synthesizer -->|9. Final Markdown Report| Gateway
+    Client -->|"1. Prompt / HTTP POST"| Gateway
+    Gateway -.->|"2. SSE Token and State Stream"| Client
+    Gateway -->|"3. Invoke Workflow"| Compiler
+    Compiler -->|"4. Dynamic Agent DAG"| Runtime
+    Runtime -->|"5. Scrape and Search"| Tools
+    Tools -->|"6. Raw Text Traces"| Runtime
+    Runtime -->|"7. Candidate Records"| Synthesizer
+    Synthesizer -->|"8. Normalized Dataset"| Database
+    Synthesizer -->|"9. Final Markdown Report"| Gateway
 
-    Compiler & Runtime & Synthesizer <-->|LLM Inference Calls| Inference
-    Gateway <-->|Auth & Session Persistence| Database
+    Compiler & Runtime & Synthesizer <-->|"LLM Inference Calls"| Inference
+    Gateway <-->|"Auth and Session Persistence"| Database
 ```
