@@ -213,8 +213,8 @@ RULES:
 - Answer based on the actual data. Do NOT fabricate or hallucinate information.
 - Reference specific entities/records by name when relevant.
 - For numerical questions (counts, averages, etc.), compute the answer from the data.
-- For filtering questions, list the matching entities.
-- Keep answers concise but comprehensive.
+- For filtering or listing questions, enumerate ALL matching entities from the dataset. Do NOT artificially truncate to only 2 or 3 items unless the user explicitly requested a small count.
+- Keep answers informative, well-structured, and comprehensive.
 
 Return ONLY a valid JSON object with this structure:
 {

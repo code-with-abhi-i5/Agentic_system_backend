@@ -39,7 +39,7 @@ export const dataExtractorNode = async (state, config) => {
 
   const rawData = state.finalOutput || state.rawScrapedData || [];
   const systemPrompt = `You are an elite autonomous Data Extraction & Structuring AI Engine.
-Extract up to 8-12 distinct, high-relevance entities (companies, channels, creators, projects, products) from the provided search excerpts that match the user query.
+Extract ALL distinct, high-relevance entities (companies, channels, creators, projects, products) from the provided search excerpts that match the user query. Be thorough and enumerate every single valid entity (aim for 10-15 entities if mentioned). Do NOT stop after only 2 or 3 entities.
 
 Output ONLY a valid parseable JSON object with this exact structure:
 {

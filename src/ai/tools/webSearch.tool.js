@@ -3,7 +3,7 @@ import { env } from "../../config/env.js";
 import { logger } from "../../utils/logger.js";
 
 export const webSearchTool = new TavilySearch({
-    maxResults: 15,
+    maxResults: 20,
     topic: "general",
     searchDepth: "advanced",
     includeAnswer: true,
@@ -15,39 +15,25 @@ webSearchTool.name = "web_search_tool";
 
 /**
  * Executes a multi-query search to retrieve deep authoritative sources safely.
- * Runs sequentially with rate-limit pacing (1.2s delay) to strictly prevent Tavily 429 errors.
+ * Runs sequentially with rate-limit pacing (1.1s delay) to strictly prevent Tavily 429 errors.
  */
 export const executeMultiWebSearch = async (query, options = {}) => {
     const { targetCount = 15, onProgress } = options;
 
-    // For 15 or fewer, a single Tavily call with maxResults: 15 is optimal and fast
-    if (targetCount <= 15) {
-        try {
-            const single = await webSearchTool.invoke({ query });
-            return {
-                query,
-                answer: single?.answer || "",
-                results: single?.results || [],
-                totalSources: (single?.results || []).length
-            };
-        } catch (err) {
-            logger.warn(`Single search notice: ${err.message}`);
-            return { query, answer: "", results: [], totalSources: 0 };
-        }
-    }
-
-    // For larger targets (> 15, e.g. 50), run up to 3 queries sequentially with 1.2s pacing
     const cleanTopic = query
         .replace(/\b(?:top|find|give|get|show|list)\b/gi, "")
         .replace(/\b\d{1,3}\b/g, "")
         .replace(/\s+/g, " ")
         .trim();
 
-    const queries = [
-        query,
-        `best ${cleanTopic} comprehensive directory`,
-        `popular ${cleanTopic} rankings guide`
-    ];
+    // Generate up to 3 diversified discovery vectors for comprehensive web coverage
+    const queries = [query];
+    if (cleanTopic) {
+        queries.push(`best ${cleanTopic} comprehensive directory list`);
+        if (targetCount >= 8) {
+            queries.push(`top popular ${cleanTopic} rankings guide`);
+        }
+    }
 
     if (onProgress) {
         await onProgress(`Initiating multi-query search across ${queries.length} discovery vectors...`);
@@ -62,7 +48,7 @@ export const executeMultiWebSearch = async (query, options = {}) => {
         try {
             if (i > 0) {
                 // Rate-limit pause to ensure Tavily's 1 req/sec limit is respected
-                await new Promise(r => setTimeout(r, 1200));
+                await new Promise(r => setTimeout(r, 1100));
             }
             if (onProgress) {
                 await onProgress(`Querying vector ${i + 1}/${queries.length}: "${q.slice(0, 45)}..."`);
