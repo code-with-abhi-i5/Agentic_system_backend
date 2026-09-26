@@ -80,6 +80,10 @@ const datasetSchema = new mongoose.Schema(
         status: { type: String, default: "pending" },
       },
     },
+    suggestedQuestions: {
+      type: [String],
+      default: [],
+    },
     status: {
       type: String,
       enum: ["PROCESSING", "COMPLETED", "FAILED"],

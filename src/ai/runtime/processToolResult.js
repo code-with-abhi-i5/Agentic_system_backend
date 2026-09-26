@@ -40,16 +40,27 @@ const processWebSearchResult = ({
 
     }
 
+    if (parsed.error) {
+        return new ToolMessage({
+            tool_call_id: toolCall.id,
+            name: toolMessage.name,
+            content: `Search error: ${parsed.error}. Proceed to provide your final answer using internal knowledge without retrying this search tool.`
+        });
+    }
+
     const compact = {
 
         answer: parsed.answer ?? "",
 
         sources: Array.isArray(parsed.results)
             ? parsed.results
-                .slice(0, 3)
+                .slice(0, 30)
                 .map(result => ({
                     title: result.title,
-                    url: result.url
+                    url: result.url,
+                    content: result.content
+                        ? (result.content.length > 400 ? result.content.slice(0, 400) + "..." : result.content)
+                        : ""
                 }))
             : []
 

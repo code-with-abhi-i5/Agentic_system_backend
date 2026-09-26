@@ -3,8 +3,9 @@ import {
   getDatasetById,
   queryDatasetRecords,
   generateExportContent,
+  updateDatasetSuggestions,
 } from "./dataset.service.js";
-import { datasetChatNode } from "../../ai/nodes/datasetChat.node.js";
+import { datasetChatNode, generateContextualQuestions, generateAISuggestions } from "../../ai/nodes/datasetChat.node.js";
 import { reportGeneratorNode } from "../../ai/nodes/reportGenerator.node.js";
 import { logger } from "../../utils/logger.js";
 
@@ -115,6 +116,7 @@ export const chatWithDataset = async (req, res) => {
       records,
       question,
       conversationHistory,
+      datasetTitle: dataset.title || dataset.prompt || "",
     });
 
     return res.status(200).json({
@@ -219,3 +221,73 @@ export const getDatasetLineage = async (req, res) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
+
+/**
+ * Get Contextual Follow-up Suggestions for Dataset
+ * GET /api/datasets/:id/suggestions
+ */
+export const getDatasetSuggestions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataset = await getDatasetById(id);
+
+    if (!dataset) {
+      return res.status(404).json({ success: false, error: "Dataset not found." });
+    }
+
+    // 1. If dataset already has cached AI suggested questions, return them instantly (0 extra tokens)
+    if (Array.isArray(dataset.suggestedQuestions) && dataset.suggestedQuestions.length > 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          datasetTitle: dataset.title,
+          datasetId: dataset._id,
+          suggestions: dataset.suggestedQuestions,
+          cached: true,
+        },
+      });
+    }
+
+    // 2. Otherwise generate with AI Model (compact token footprint, < 250 tokens)
+    let suggestions = [];
+    try {
+      suggestions = await generateAISuggestions({
+        title: dataset.title || dataset.prompt || "",
+        prompt: dataset.prompt || "",
+        records: dataset.records || [],
+      });
+    } catch (err) {
+      logger.warn(`AI suggestion generation error: ${err.message}. Using fallback.`);
+    }
+
+    if (!suggestions || suggestions.length === 0) {
+      suggestions = generateContextualQuestions(
+        dataset.title || dataset.prompt || "",
+        dataset.records || []
+      );
+    }
+
+    // 3. Cache to dataset storage so future visits don't consume tokens
+    if (suggestions && suggestions.length > 0) {
+      try {
+        await updateDatasetSuggestions(id, suggestions);
+      } catch (cacheErr) {
+        // silent fail on cache
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        datasetTitle: dataset.title,
+        datasetId: dataset._id,
+        suggestions,
+        cached: false,
+      },
+    });
+  } catch (error) {
+    logger.error(`❌ [Dataset Suggestions Error]: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
