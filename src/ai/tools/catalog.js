@@ -59,6 +59,10 @@ export const TOOL_CATALOG = [
     {
         name: "document_generator_tool",
         description: "Generates a highly-styled PDF document (like a Resume, Invoice, or Report) from raw HTML/CSS and returns a secure, temporary download link. Always write beautiful HTML/CSS for the document."
+    },
+    {
+        name: "self_healing_scraper_tool",
+        description: "High-reliability web scraper equipped with Multimodal Visual Layout Grounding. Automatically recovers and self-heals when website CSS selectors or DOM structures break. Perfect for SPAs and redesign-prone websites."
     }
 ];
 

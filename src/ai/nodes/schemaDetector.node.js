@@ -97,7 +97,7 @@ export const schemaDetectorNode = (records = []) => {
   }
 
   // Internal/system fields to exclude from user-editable schema
-  const excludedFields = new Set(["id", "_id", "__v", "status", "scrapedAt"]);
+  const excludedFields = new Set(["id", "_id", "__v", "status", "scrapedAt", "verification"]);
 
   // Build proposedSchema with analytics
   const proposedSchema = [];

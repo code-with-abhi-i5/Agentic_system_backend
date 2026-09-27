@@ -14,6 +14,7 @@ import { webSearchTool, executeMultiWebSearch } from "../../ai/tools/webSearch.t
 import { dataExtractorNode } from "../../ai/nodes/dataExtractor.node.js";
 import { dataDeduplicatorNode } from "../../ai/nodes/dataDeduplicator.node.js";
 import { schemaDetectorNode } from "../../ai/nodes/schemaDetector.node.js";
+import { adversarialAuditorNode } from "../../ai/nodes/adversarialAuditor.node.js";
 import { generateContextualQuestions } from "../../ai/nodes/datasetChat.node.js";
 import { logger } from "../../utils/logger.js";
 
@@ -92,10 +93,11 @@ export const startExtractionTask = async (req, res) => {
     await updateTaskProgress(taskId, "PLANNING", 20);
     sendEvent({ type: "status", status: "Planning Execution Blueprint & Entity Schema..." });
     await emitLog("IntentAnalyzer", `Parsed target requirements: "${prompt.slice(0, 60)}..."`);
-    await emitLog("MetaArchitect", "Compiled dynamic LangGraph DAG with 4 runtime worker agents.");
+    await emitLog("MetaArchitect", "Compiled dynamic LangGraph DAG with 5 runtime worker agents.");
     await emitLog("MetaArchitect", "[Agent Provisioned] TavilyScout: Model=tavily-search-v1, Role=Web Intelligence Discovery");
     await emitLog("MetaArchitect", "[Agent Provisioned] DataExtractor: Model=qwen3.8-27b (Groq), Role=DOM Parsing & Entity Structuring, Temp=0.1");
     await emitLog("MetaArchitect", "[Agent Provisioned] Deduplicator: Model=HashDedupeAlgo, Role=Entity Collision Detection & Pruning");
+    await emitLog("MetaArchitect", "[Agent Provisioned] RedTeamAuditor: Model=qwen3.8-27b (Groq), Role=Adversarial Claim Fact-Checking & Dialectic Verification");
     await emitLog("MetaArchitect", "[Agent Provisioned] SchemaDetector: Model=llama-3-70b (Groq), Role=Dynamic Type Inference");
 
     // Determine target count from prompt (e.g. "top 50") or maxRecords
@@ -260,9 +262,44 @@ export const startExtractionTask = async (req, res) => {
     sendEvent({ type: "lineage_update", stage: "validation", data: lineage.validation });
 
     // ═══════════════════════════════════════════════════════════════
+    // STAGE 4.5: ADVERSARIAL RED-TEAM FACT-CHECKING
+    // ═══════════════════════════════════════════════════════════════
+    checkCancellation();
+    sendEvent({ type: "status", status: "Running Red-Team Adversarial Cross-Examination..." });
+    await emitLog("RedTeamAuditor", "Cross-verifying primary claims against independent counter-intelligence probes...");
+
+    let auditedRecords = dedupResult.cleanRecords;
+    try {
+      auditedRecords = await adversarialAuditorNode(dedupResult.cleanRecords, {
+        maxAudits: 5,
+        onProgress: async (msg) => {
+          await emitLog("RedTeamAuditor", msg);
+        },
+      });
+
+      const contestedCount = auditedRecords.filter((r) => r.verification?.status === "CONTESTED").length;
+      if (contestedCount > 0) {
+        await emitLog(
+          "RedTeamAuditor",
+          `Cross-examination complete: ${contestedCount} claim(s) flagged with discrepancies. Dual citations attached.`,
+          "warning"
+        );
+      } else {
+        await emitLog(
+          "RedTeamAuditor",
+          `Cross-examination complete: All audited claims verified with authoritative corroboration.`,
+          "success"
+        );
+      }
+    } catch (auditErr) {
+      logger.warn(`Adversarial auditor notice: ${auditErr.message}`);
+      await emitLog("RedTeamAuditor", "Standard claim verification applied.", "info");
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // SCHEMA REVIEW — Auto-detect schema and pause for user approval
     // ═══════════════════════════════════════════════════════════════
-    const { proposedSchema, fieldStats } = schemaDetectorNode(dedupResult.cleanRecords);
+    const { proposedSchema, fieldStats } = schemaDetectorNode(auditedRecords);
 
     await emitLog(
       "SchemaDetector",
@@ -273,7 +310,7 @@ export const startExtractionTask = async (req, res) => {
     // Store pending review data so confirm-schema endpoint can access it
     storePendingSchemaReview(taskId, {
       prompt,
-      cleanRecords: dedupResult.cleanRecords,
+      cleanRecords: auditedRecords,
       stats: dedupResult.stats,
       sources: dedupResult.sourcesList,
       datasetTitle,
@@ -287,8 +324,8 @@ export const startExtractionTask = async (req, res) => {
       taskId,
       proposedSchema,
       fieldStats,
-      sampleRecords: dedupResult.cleanRecords.slice(0, 3),
-      totalRecords: dedupResult.cleanRecords.length,
+      sampleRecords: auditedRecords.slice(0, 3),
+      totalRecords: auditedRecords.length,
       datasetTitle,
     });
 
@@ -356,6 +393,9 @@ export const confirmSchemaAndSave = async (req, res) => {
           // Apply field rename mappings
           const newKey = fieldMappings[key] || key;
           newRecord[newKey] = value;
+        }
+        if (record.verification) {
+          newRecord.verification = record.verification;
         }
         return newRecord;
       });

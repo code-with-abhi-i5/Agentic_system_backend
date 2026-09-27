@@ -2,8 +2,44 @@ import mongoose from "mongoose";
 import { Dataset } from "./dataset.model.js";
 import { Parser } from "json2csv";
 import { fileStorage } from "../../utils/fileStorage.js";
+import { computeDatasetDiff } from "../../ai/services/datasetDiff.service.js";
 
 export const createDataset = async (datasetData) => {
+  // Step 1: Detect version lineage if re-scraping or scheduling
+  try {
+    if (!datasetData.parentDatasetId && (datasetData.prompt || datasetData.title)) {
+      let prevDataset = null;
+      if (mongoose.connection.readyState === 1) {
+        prevDataset = await Dataset.findOne({
+          $or: [
+            ...(datasetData.prompt ? [{ prompt: datasetData.prompt }] : []),
+            ...(datasetData.title ? [{ title: datasetData.title }] : [])
+          ]
+        }).sort({ createdAt: -1 }).lean();
+      }
+      if (!prevDataset) {
+        const diskList = fileStorage.getDatasets();
+        prevDataset = diskList.find(d => 
+          (datasetData.prompt && d.prompt === datasetData.prompt) || 
+          (datasetData.title && d.title === datasetData.title)
+        ) || null;
+      }
+
+      if (prevDataset && String(prevDataset._id) !== String(datasetData._id)) {
+        datasetData.parentDatasetId = prevDataset._id;
+        datasetData.version = (prevDataset.version || 1) + 1;
+        const diffResult = computeDatasetDiff(prevDataset.records || [], datasetData.records || []);
+        datasetData.diffSummary = {
+          ...diffResult.summary,
+          comparedWithId: prevDataset._id,
+          lastComparedAt: new Date()
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Lineage detection warning:", err.message);
+  }
+
   let created = null;
   if (mongoose.connection.readyState === 1) {
     try {

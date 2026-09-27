@@ -89,6 +89,31 @@ const datasetSchema = new mongoose.Schema(
       enum: ["PROCESSING", "COMPLETED", "FAILED"],
       default: "COMPLETED",
     },
+    version: {
+      type: Number,
+      default: 1,
+    },
+    parentDatasetId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Dataset",
+      required: false,
+    },
+    schedule: {
+      enabled: { type: Boolean, default: false },
+      cron: { type: String, default: "" },
+      frequency: { type: String, enum: ["daily", "weekly", "monthly", "custom", "none"], default: "none" },
+      lastRunAt: { type: Date },
+      nextRunAt: { type: Date },
+      webhookUrl: { type: String, default: "" },
+    },
+    diffSummary: {
+      addedCount: { type: Number, default: 0 },
+      removedCount: { type: Number, default: 0 },
+      mutatedCount: { type: Number, default: 0 },
+      driftPercentage: { type: Number, default: 0 },
+      comparedWithId: { type: mongoose.Schema.Types.ObjectId, ref: "Dataset" },
+      lastComparedAt: { type: Date },
+    },
   },
   {
     timestamps: true,

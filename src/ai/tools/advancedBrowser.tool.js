@@ -1,6 +1,7 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import puppeteer from "puppeteer";
+import { VisionSelfHealer } from "../services/visionSelfHealer.service.js";
 import { logger } from "../../utils/logger.js";
 
 export const advancedBrowserTool = tool(
@@ -40,11 +41,14 @@ export const advancedBrowserTool = tool(
                         await page.waitForSelector(action.target, { timeout: 10000 });
                         break;
                     case "scrape":
-                        // Extract text from the body
-                        finalResult = await page.evaluate(() => {
-                            return document.body.innerText.slice(0, 5000); // Limit to 5000 chars
+                    case "self_heal_scrape": {
+                        const currentUrl = page.url();
+                        const healResult = await VisionSelfHealer.scrapePage(page, currentUrl, {
+                            targetSelector: action.target
                         });
+                        finalResult = typeof healResult === "object" ? JSON.stringify(healResult) : healResult;
                         break;
+                    }
                     case "screenshot":
                         // In a real advanced setup, we would save this to AWS S3 and return the URL.
                         // For now, we just note it.
@@ -69,10 +73,10 @@ export const advancedBrowserTool = tool(
     },
     {
         name: "advanced_browser_tool",
-        description: "Uses a headless Chrome browser to interact with dynamic web applications (SPAs). Can click buttons, type text, wait for elements, and scrape text. Useful for sites that require interaction or JS rendering.",
+        description: "Uses a headless Chrome browser to interact with dynamic web applications (SPAs). Can click buttons, type text, wait for elements, and scrape text with automatic visual layout self-healing when CSS breaks. Useful for sites that require interaction or JS rendering.",
         schema: z.object({
             actions: z.array(z.object({
-                type: z.enum(["goto", "click", "type", "wait", "scrape", "screenshot"]).describe("The action to perform."),
+                type: z.enum(["goto", "click", "type", "wait", "scrape", "screenshot", "self_heal_scrape"]).describe("The action to perform."),
                 target: z.string().optional().describe("The URL for 'goto', or the CSS Selector for 'click', 'type', and 'wait'."),
                 value: z.string().optional().describe("The text to type for the 'type' action.")
             })).describe("An ordered array of actions for the browser to perform sequentially.")

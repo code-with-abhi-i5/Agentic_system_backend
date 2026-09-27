@@ -4,7 +4,8 @@ import { logger } from "../utils/logger.js";
 export const connectDB = async () => {
     try {
         const connection = await mongoose.connect(
-            process.env.MONGO_URI
+            process.env.MONGO_URI,
+            { serverSelectionTimeoutMS: 2000 }
         );
 
         logger.info(

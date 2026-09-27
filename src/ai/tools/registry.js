@@ -13,6 +13,7 @@ import { advancedBrowserTool } from "./advancedBrowser.tool.js";
 import { emailDispatcherTool } from "./emailDispatcher.tool.js";
 import { imageGeneratorTool } from "./imageGenerator.tool.js";
 import { documentGeneratorTool } from "./documentGenerator.tool.js";
+import { selfHealingScraperTool } from "./selfHealingScraper.tool.js";
 
 export const TOOL_REGISTRY = {
 
@@ -30,6 +31,7 @@ export const TOOL_REGISTRY = {
     advanced_browser_tool: advancedBrowserTool,
     email_dispatcher_tool: emailDispatcherTool,
     image_generator_tool: imageGeneratorTool,
-    document_generator_tool: documentGeneratorTool
+    document_generator_tool: documentGeneratorTool,
+    self_healing_scraper_tool: selfHealingScraperTool
 
 };

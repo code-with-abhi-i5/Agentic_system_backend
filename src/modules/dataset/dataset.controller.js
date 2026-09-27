@@ -7,7 +7,11 @@ import {
 } from "./dataset.service.js";
 import { datasetChatNode, generateContextualQuestions, generateAISuggestions } from "../../ai/nodes/datasetChat.node.js";
 import { reportGeneratorNode } from "../../ai/nodes/reportGenerator.node.js";
+import { computeDatasetDiff } from "../../ai/services/datasetDiff.service.js";
+import { Dataset } from "./dataset.model.js";
 import { logger } from "../../utils/logger.js";
+import mongoose from "mongoose";
+import { fileStorage } from "../../utils/fileStorage.js";
 
 export const listDatasets = async (req, res) => {
   try {
@@ -287,6 +291,239 @@ export const getDatasetSuggestions = async (req, res) => {
     });
   } catch (error) {
     logger.error(`❌ [Dataset Suggestions Error]: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Time-Travel Dataset Diff
+ * GET /api/datasets/:id/diff?compareWith=<optional_older_id>
+ */
+export const getDatasetDiff = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { compareWith } = req.query;
+
+    const currentDataset = await getDatasetById(id);
+    if (!currentDataset) {
+      return res.status(404).json({ success: false, error: "Target dataset not found." });
+    }
+
+    let olderDataset = null;
+
+    if (compareWith) {
+      olderDataset = await getDatasetById(compareWith);
+    } else if (currentDataset.parentDatasetId) {
+      olderDataset = await getDatasetById(currentDataset.parentDatasetId);
+    } else {
+      // Find the most recent older dataset matching the same prompt or title
+      let olderCandidates = [];
+      if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(currentDataset._id)) {
+        try {
+          olderCandidates = await Dataset.find({
+            _id: { $ne: currentDataset._id },
+            $or: [
+              ...(currentDataset.prompt ? [{ prompt: currentDataset.prompt }] : []),
+              ...(currentDataset.title ? [{ title: currentDataset.title }] : [])
+            ]
+          })
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .lean();
+        } catch (e) {}
+      }
+
+      if (!olderCandidates || olderCandidates.length === 0) {
+        const diskList = fileStorage.getDatasets();
+        olderCandidates = diskList.filter(d => 
+          String(d._id) !== String(currentDataset._id) &&
+          ((currentDataset.prompt && d.prompt === currentDataset.prompt) || 
+           (currentDataset.title && d.title === currentDataset.title))
+        );
+      }
+
+      if (olderCandidates && olderCandidates.length > 0) {
+        olderDataset = olderCandidates[0];
+      }
+    }
+
+    if (!olderDataset) {
+      // No older version to compare with - return clean self baseline
+      return res.status(200).json({
+        success: true,
+        data: {
+          hasComparison: false,
+          message: "This is the initial baseline version of this dataset (No earlier version found).",
+          summary: {
+            totalOld: 0,
+            totalNew: (currentDataset.records || []).length,
+            addedCount: (currentDataset.records || []).length,
+            removedCount: 0,
+            mutatedCount: 0,
+            unchangedCount: 0,
+            driftPercentage: 0
+          },
+          diffs: {
+            added: (currentDataset.records || []).map(r => ({ ...r, _diffType: "ADDED" })),
+            removed: [],
+            mutated: [],
+            unchanged: []
+          },
+          allRecordsWithDiff: (currentDataset.records || []).map(r => ({ ...r, _diffType: "ADDED" })),
+          currentDataset: {
+            id: currentDataset._id,
+            title: currentDataset.title,
+            version: currentDataset.version || 1,
+            createdAt: currentDataset.createdAt
+          },
+          comparedWith: null
+        }
+      });
+    }
+
+    const diffResult = computeDatasetDiff(olderDataset.records || [], currentDataset.records || []);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        hasComparison: true,
+        summary: diffResult.summary,
+        diffs: diffResult.diffs,
+        allRecordsWithDiff: diffResult.allRecordsWithDiff,
+        currentDataset: {
+          id: currentDataset._id,
+          title: currentDataset.title,
+          version: currentDataset.version || 1,
+          createdAt: currentDataset.createdAt
+        },
+        comparedWith: {
+          id: olderDataset._id,
+          title: olderDataset.title,
+          version: olderDataset.version || 1,
+          createdAt: olderDataset.createdAt
+        }
+      }
+    });
+
+  } catch (error) {
+    logger.error(`❌ [Dataset Diff Error]: ${error.message}`);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Configure Autonomous Swarm Cron for Dataset
+ * POST /api/datasets/:id/schedule
+ */
+export const configureDatasetSchedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { enabled, frequency = "weekly", cron = "0 9 * * 1", webhookUrl = "" } = req.body;
+
+    let dataset = null;
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(id)) {
+      try {
+        dataset = await Dataset.findById(id);
+      } catch (e) {}
+    }
+    if (!dataset) {
+      dataset = fileStorage.getDatasetById(id);
+    }
+    if (!dataset) {
+      return res.status(404).json({ success: false, error: "Dataset not found." });
+    }
+
+    let nextRunAt = new Date();
+    if (frequency === "daily") {
+      nextRunAt.setDate(nextRunAt.getDate() + 1);
+    } else if (frequency === "monthly") {
+      nextRunAt.setMonth(nextRunAt.getMonth() + 1);
+    } else {
+      nextRunAt.setDate(nextRunAt.getDate() + 7);
+    }
+
+    dataset.schedule = {
+      enabled: Boolean(enabled),
+      frequency,
+      cron,
+      webhookUrl,
+      lastRunAt: dataset.schedule?.lastRunAt || null,
+      nextRunAt: enabled ? nextRunAt : null
+    };
+
+    if (dataset.save) {
+      await dataset.save();
+    } else {
+      fileStorage.saveDataset(dataset);
+    }
+
+    logger.info(`⏰ [Swarm Cron] Schedule updated for dataset "${dataset.title}": Enabled=${enabled}, Frequency=${frequency}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        datasetId: dataset._id,
+        schedule: dataset.schedule,
+        message: enabled
+          ? `Autonomous Swarm Cron scheduled (${frequency}). Next execution: ${nextRunAt.toLocaleDateString()}`
+          : "Autonomous Swarm Cron paused."
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Get Historical Versions for a Dataset
+ * GET /api/datasets/:id/versions
+ */
+export const getDatasetVersions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const current = await getDatasetById(id);
+    if (!current) {
+      return res.status(404).json({ success: false, error: "Dataset not found." });
+    }
+
+    let versions = [];
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(current._id)) {
+      try {
+        versions = await Dataset.find({
+          $or: [
+            { _id: current._id },
+            { parentDatasetId: current._id },
+            { parentDatasetId: current.parentDatasetId },
+            ...(current.prompt ? [{ prompt: current.prompt }] : [])
+          ]
+        })
+        .select("_id title version stats records createdAt schedule")
+        .sort({ createdAt: -1 })
+        .lean();
+      } catch (e) {}
+    }
+
+    if (!versions || versions.length === 0) {
+      const diskList = fileStorage.getDatasets();
+      versions = diskList.filter(d => 
+        String(d._id) === String(current._id) ||
+        (current.parentDatasetId && String(d._id) === String(current.parentDatasetId)) ||
+        (d.parentDatasetId && String(d.parentDatasetId) === String(current._id)) ||
+        (current.prompt && d.prompt === current.prompt)
+      );
+    }
+
+    const formattedVersions = versions.map((v) => ({
+      id: v._id,
+      title: v.title,
+      version: v.version || 1,
+      recordsCount: (v.records || []).length,
+      createdAt: v.createdAt,
+      isCurrent: String(v._id) === String(current._id)
+    }));
+
+    return res.status(200).json({ success: true, data: formattedVersions });
+  } catch (error) {
     return res.status(500).json({ success: false, error: error.message });
   }
 };
