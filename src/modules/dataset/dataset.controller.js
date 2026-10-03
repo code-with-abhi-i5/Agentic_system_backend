@@ -4,11 +4,13 @@ import {
   queryDatasetRecords,
   generateExportContent,
   updateDatasetSuggestions,
+  deleteDatasetById,
 } from "./dataset.service.js";
 import { datasetChatNode, generateContextualQuestions, generateAISuggestions } from "../../ai/nodes/datasetChat.node.js";
 import { reportGeneratorNode } from "../../ai/nodes/reportGenerator.node.js";
 import { computeDatasetDiff } from "../../ai/services/datasetDiff.service.js";
 import { Dataset } from "./dataset.model.js";
+import { Task } from "../task/task.model.js";
 import { logger } from "../../utils/logger.js";
 import mongoose from "mongoose";
 import { fileStorage } from "../../utils/fileStorage.js";
@@ -524,6 +526,40 @@ export const getDatasetVersions = async (req, res) => {
 
     return res.status(200).json({ success: true, data: formattedVersions });
   } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/**
+ * Delete Dataset
+ * DELETE /api/datasets/:id
+ */
+export const removeDataset = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const dataset = await getDatasetById(id);
+    if (!dataset) {
+      return res.status(404).json({ success: false, error: "Dataset not found." });
+    }
+
+    await deleteDatasetById(id);
+
+    // Unset datasetId in tasks referencing this dataset
+    if (mongoose.connection.readyState === 1 && mongoose.Types.ObjectId.isValid(id)) {
+      try {
+        await Task.updateMany({ datasetId: id }, { $unset: { datasetId: "" } });
+      } catch (e) {}
+    }
+
+    logger.info(`🗑️ [Dataset Controller] Deleted dataset "${dataset.title || dataset.prompt || id}" (${id})`);
+
+    return res.status(200).json({
+      success: true,
+      message: `Dataset "${dataset.title || dataset.prompt || id}" deleted successfully.`,
+      deletedId: id,
+    });
+  } catch (error) {
+    logger.error(`❌ [Delete Dataset Error]: ${error.message}`);
     return res.status(500).json({ success: false, error: error.message });
   }
 };

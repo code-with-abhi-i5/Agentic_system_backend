@@ -258,3 +258,22 @@ export const updateDatasetSuggestions = async (id, suggestions) => {
   }
 };
 
+export const deleteDatasetById = async (id) => {
+  let deleted = false;
+  if (mongoose.connection.readyState === 1) {
+    try {
+      if (mongoose.Types.ObjectId.isValid(id)) {
+        const res = await Dataset.findByIdAndDelete(id);
+        if (res) deleted = true;
+      } else {
+        const res = await Dataset.findOneAndDelete({ $or: [{ _id: id }, { id: id }] });
+        if (res) deleted = true;
+      }
+    } catch (e) {
+      console.warn("MongoDB delete failed:", e.message);
+    }
+  }
+  const diskDeleted = fileStorage.deleteDataset(id);
+  return deleted || diskDeleted;
+};
+

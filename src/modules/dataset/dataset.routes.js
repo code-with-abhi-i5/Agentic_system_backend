@@ -11,6 +11,7 @@ import {
   getDatasetDiff,
   getDatasetVersions,
   configureDatasetSchedule,
+  removeDataset,
 } from "./dataset.controller.js";
 import { optionalAuthMiddleware } from "../../middleware/optionalAuth.js";
 
@@ -27,6 +28,7 @@ router.get("/:id/lineage", getDatasetLineage);
 router.get("/:id/suggestions", getDatasetSuggestions);
 router.get("/:id/diff", getDatasetDiff);
 router.get("/:id/versions", getDatasetVersions);
+router.delete("/:id", removeDataset);
 
 // AI-Powered Features & Automation
 router.post("/:id/chat", chatWithDataset);

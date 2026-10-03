@@ -74,7 +74,8 @@ export const fileStorage = {
   },
   deleteDataset(id) {
     const list = this.getDatasets();
-    const filtered = list.filter((d) => (d._id || d.id) !== id);
+    const strId = String(id);
+    const filtered = list.filter((d) => String(d._id) !== strId && String(d.id) !== strId);
     writeJsonFile("datasets.json", filtered);
     return true;
   },

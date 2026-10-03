@@ -1,15 +1,15 @@
 import mongoose from 'mongoose';
-import { calculatorTool } from './src/ai/tools/calculator.tool.js';
-import { webScraperTool } from './src/ai/tools/webScraper.tool.js';
-import { currentTimeTool } from './src/ai/tools/currentTime.tool.js';
-import { wikipediaTool } from './src/ai/tools/wikipedia.tool.js';
-import { weatherTool } from './src/ai/tools/weather.tool.js';
-import { jsExecutionTool } from './src/ai/tools/jsExecution.tool.js';
-import { hackerNewsTool } from './src/ai/tools/hackerNews.tool.js';
-import { githubTool } from './src/ai/tools/github.tool.js';
-import { imageGeneratorTool } from './src/ai/tools/imageGenerator.tool.js';
-import { advancedBrowserTool } from './src/ai/tools/advancedBrowser.tool.js';
-import { documentGeneratorTool } from './src/ai/tools/documentGenerator.tool.js';
+import { calculatorTool } from '../src/ai/tools/calculator.tool.js';
+import { webScraperTool } from '../src/ai/tools/webScraper.tool.js';
+import { currentTimeTool } from '../src/ai/tools/currentTime.tool.js';
+import { wikipediaTool } from '../src/ai/tools/wikipedia.tool.js';
+import { weatherTool } from '../src/ai/tools/weather.tool.js';
+import { jsExecutionTool } from '../src/ai/tools/jsExecution.tool.js';
+import { hackerNewsTool } from '../src/ai/tools/hackerNews.tool.js';
+import { githubTool } from '../src/ai/tools/github.tool.js';
+import { imageGeneratorTool } from '../src/ai/tools/imageGenerator.tool.js';
+import { advancedBrowserTool } from '../src/ai/tools/advancedBrowser.tool.js';
+import { documentGeneratorTool } from '../src/ai/tools/documentGenerator.tool.js';
 
 async function runTests() {
     console.log("=== STARTING TIER 2 TOOL TESTS ===");
