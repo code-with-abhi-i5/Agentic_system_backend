@@ -18,20 +18,25 @@ webSearchTool.name = "web_search_tool";
  * Runs sequentially with rate-limit pacing (1.1s delay) to strictly prevent Tavily 429 errors.
  */
 export const executeMultiWebSearch = async (query, options = {}) => {
-    const { targetCount = 15, onProgress } = options;
+    const { targetCount = 15, onProgress, searchVectors = [] } = options;
 
-    const cleanTopic = query
-        .replace(/\b(?:top|find|give|get|show|list)\b/gi, "")
-        .replace(/\b\d{1,3}\b/g, "")
-        .replace(/\s+/g, " ")
-        .trim();
+    let queries = [];
+    if (Array.isArray(searchVectors) && searchVectors.length > 0) {
+        queries = searchVectors.slice(0, 3);
+    } else {
+        const cleanTopic = query
+            .replace(/\b(?:top|find|give|get|show|list)\b/gi, "")
+            .replace(/\b\d{1,3}\b/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
 
-    // Generate up to 3 diversified discovery vectors for comprehensive web coverage
-    const queries = [query];
-    if (cleanTopic) {
-        queries.push(`best ${cleanTopic} comprehensive directory list`);
-        if (targetCount >= 8) {
-            queries.push(`top popular ${cleanTopic} rankings guide`);
+        // Generate up to 3 diversified discovery vectors for comprehensive web coverage
+        queries = [query];
+        if (cleanTopic) {
+            queries.push(`best ${cleanTopic} comprehensive directory list`);
+            if (targetCount >= 8) {
+                queries.push(`top popular ${cleanTopic} rankings guide`);
+            }
         }
     }
 

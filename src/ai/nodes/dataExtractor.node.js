@@ -38,25 +38,36 @@ export const dataExtractorNode = async (state, config) => {
   logger.info("🔍 [Data Extractor] Converting raw web text to structured tabular records...");
 
   const rawData = state.finalOutput || state.rawScrapedData || [];
+  const bp = state.blueprint || null;
+
+  const blueprintInstructions = bp
+    ? `\nARCHITECTURAL BLUEPRINT SPECIFICATION:
+- Problem Domain: ${bp.domain}
+- Primary Entity Type: ${bp.entityType}
+- Specific Extraction Strategy: ${bp.extractionStrategy}
+- Target Desired Fields: [${bp.targetFields?.join(", ") || "standard fields"}]
+Ensure your extraction strictly follows this blueprint strategy. Map the primary entity name to "company" (e.g. Company name, Job Title, or Project Name). Map key contact, founder, or hiring manager to "founder". Map funding, salary range, or valuation to "funding". Map core technologies or required skills to "techStack".`
+    : "";
+
   const systemPrompt = `You are an elite autonomous Data Extraction & Structuring AI Engine.
-Extract ALL distinct, high-relevance entities (companies, channels, creators, projects, products) from the provided search excerpts that match the user query. Be thorough and enumerate every single valid entity (aim for 10-15 entities if mentioned). Do NOT stop after only 2 or 3 entities.
+Extract ALL distinct, high-relevance entities (companies, channels, creators, projects, products, job postings) from the provided search excerpts that match the user query. Be thorough and enumerate every single valid entity (aim for 10-15 entities if mentioned). Do NOT stop after only 2 or 3 entities.${blueprintInstructions}
 
 Output ONLY a valid parseable JSON object with this exact structure:
 {
   "title": "Clean Dataset Title",
   "records": [
     {
-      "company": "Name of Company, Channel or Entity",
+      "company": "Name of Company, Channel, Job Title, or Entity",
       "category": "Industry or Category",
-      "stage": "Growth Stage (e.g. Series A, Series B, Seed, Unicorn, Bootstrapped)",
+      "stage": "Growth Stage (e.g. Series A, Series B, Seed, Unicorn, Bootstrapped, Full-Time)",
       "foundedYear": "Year Founded (e.g. 2022)",
       "headcount": "Approximate team size (e.g. 50-100 employees)",
-      "founder": "Founder, Creator or Key Person",
-      "role": "Role (e.g. Creator, Founder, CEO)",
+      "founder": "Founder, Creator, Hiring Manager, or Key Person",
+      "role": "Role (e.g. Creator, Founder, CEO, Engineer)",
       "email": "Contact Email or Handle",
       "location": "City, State, Country",
-      "funding": "Funding, Valuation or Revenue Raised",
-      "techStack": "Technologies used or Core Product Focus",
+      "funding": "Funding, Valuation, Salary Range, or Revenue Raised",
+      "techStack": "Technologies used or Core Product Focus or Required Skills",
       "sourceUrl": "Source URL citation",
       "sourceDomain": "Domain name (e.g. techcrunch.com)",
       "snippet": "Short excerpt mentioning this entity",
